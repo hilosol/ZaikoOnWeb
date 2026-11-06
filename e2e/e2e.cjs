@@ -793,13 +793,18 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     await page.locator(".stock-panel .history-list li", { hasText: "数量まちがい用" }).first().click();
     const dlg = page.getByRole("dialog", { name: "履歴の詳細・修正" });
     await dlg.waitFor();
-    check("履歴の修正：直せるのはコメントだけ（受注番号などの入力欄は無い）", (await dlg.locator("input").count()) === 2 && !(await dlg.getByRole("combobox").count()));
+    check("履歴の修正：直せるのは受注番号とコメント（移管先・数量などの入力欄は無い）",
+      (await dlg.getByRole("combobox", { name: "受注番号" }).count()) === 1 && (await dlg.locator("input").count()) === 3);
     await dlg.getByLabel("コメント").fill("修理用（修正）");
-    await dlg.getByRole("button", { name: "コメントを保存" }).click();
-    await page.locator(".toast", { hasText: "コメントを修正しました" }).waitFor();
+    await dlg.getByRole("combobox", { name: "受注番号" }).fill("yho26002");
+    await dlg.getByLabel("コメント").click(); // 候補の一覧を閉じる
+    await dlg.getByRole("button", { name: "修正を保存" }).click();
+    await page.locator(".toast", { hasText: "履歴を修正しました" }).waitFor();
     await dlg.getByTestId("history-edits").waitFor();
     const editRows = await dlg.locator("[data-testid=history-edits] tbody tr").allTextContents();
-    check("履歴の修正：コメントを直し、修正前→修正後を修正履歴に残す", editRows.length === 1 && editRows[0].includes("数量まちがい用") && editRows[0].includes("修理用（修正）"), editRows.join(" | "));
+    check("履歴の修正：受注番号（リストの表記にそろえる）とコメントを直し、項目ごとに修正履歴に残す",
+      editRows.length === 2 && editRows.some((r) => r.includes("数量まちがい用") && r.includes("修理用（修正）")) && editRows.some((r) => r.includes("受注番号") && r.includes("YHO-26002")),
+      editRows.join(" | "));
     await dlg.getByLabel("取消の理由").fill("数量の入力間違い");
     page.once("dialog", (d) => d.accept());
     await dlg.getByRole("button", { name: "この履歴を取り消す" }).click();

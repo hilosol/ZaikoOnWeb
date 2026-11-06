@@ -14,7 +14,7 @@ afterEach(() => f.cleanup());
 
 const last = () => f.service.recentHistories(1)[0]!;
 
-describe("履歴の修正（コメントだけ）", () => {
+describe("履歴の修正（コメント・受注番号）", () => {
   it("コメントを直し、修正前→修正後・入力者・IPを記録する", () => {
     f.service.changeStock(pid, "TRANSFER", 2, f.actor, { destination: "製造部", comment: "貸出", orderNo: "YHO-26002" });
     const h = last();
@@ -38,9 +38,36 @@ describe("履歴の修正（コメントだけ）", () => {
     expect(f.service.historyEdits()).toHaveLength(0);
   });
 
-  it.each([{ orderNo: "X" }, { destination: "品証部" }, { reason: "戻り" }, { comment: "x", orderNo: "X" }])("コメント以外は直せない: %o", (change) => {
+  it("受注番号を直し、修正前→修正後を記録する（消すこともできる）", () => {
+    f.service.changeStock(pid, "OUT", 1, f.actor, { orderNo: "YHO-26002" });
+    const id = last().id;
+    expect(f.service.editHistory(id, { orderNo: " YHO-26003 " }, f.actor).orderNo).toBe("YHO-26003");
+    expect(f.service.editHistory(id, { orderNo: "" }, f.actor).orderNo).toBeNull();
+    expect(f.service.historyEdits(id).map((e) => [e.field, e.before, e.after])).toEqual([
+      ["orderNo", "YHO-26003", ""],
+      ["orderNo", "YHO-26002", "YHO-26003"],
+    ]);
+  });
+
+  it("コメントと受注番号を同時に直すと2件記録する。省略した項目は変えない", () => {
+    f.service.changeStock(pid, "OUT", 1, f.actor, { comment: "修理用", orderNo: "A-1" });
+    const id = last().id;
+    f.service.editHistory(id, { comment: "検査用", orderNo: "A-2" }, f.actor);
+    expect(f.service.historyEdits(id)).toHaveLength(2);
+    expect(f.service.editHistory(id, { orderNo: "A-3" }, f.actor)).toMatchObject({ comment: "検査用", orderNo: "A-3" });
+  });
+
+  it("受注番号の上限（境界値）・形式", () => {
+    f.service.changeStock(pid, "OUT", 1, f.actor);
+    const id = last().id;
+    expect(f.service.editHistory(id, { orderNo: "x".repeat(Rules.orderNoMaxLength) }, f.actor).orderNo).toHaveLength(Rules.orderNoMaxLength);
+    expect(() => f.service.editHistory(id, { orderNo: "x".repeat(Rules.orderNoMaxLength + 1) }, f.actor)).toThrow(/受注番号は50文字以内/);
+    expect(() => f.service.editHistory(id, { orderNo: 1 }, f.actor)).toThrow(/受注番号の形式/);
+  });
+
+  it.each([{ destination: "品証部" }, { reason: "戻り" }, { comment: "x", destination: "X" }, { quantity: 3 }])("コメント・受注番号以外は直せない: %o", (change) => {
     f.service.changeStock(pid, "IN", 1, f.actor, { reason: "購入" });
-    expect(() => f.service.editHistory(last().id, change, f.actor)).toThrow(/コメントだけ/);
+    expect(() => f.service.editHistory(last().id, change, f.actor)).toThrow(/コメントと受注番号だけ/);
     expect(f.service.historyEdits()).toHaveLength(0);
   });
 
@@ -49,8 +76,8 @@ describe("履歴の修正（コメントだけ）", () => {
     const id = last().id;
     expect(() => f.service.editHistory(id, { comment: "x".repeat(Rules.commentMaxLength + 1) }, f.actor)).toThrow(/200文字/);
     expect(f.service.editHistory(id, { comment: "x".repeat(Rules.commentMaxLength) }, f.actor).comment).toHaveLength(Rules.commentMaxLength);
-    expect(() => f.service.editHistory(id, { comment: 1 }, f.actor)).toThrow(/コメントを入力/);
-    expect(() => f.service.editHistory(id, {}, f.actor)).toThrow(/コメントを入力/);
+    expect(() => f.service.editHistory(id, { comment: 1 }, f.actor)).toThrow(/コメントの形式/);
+    expect(() => f.service.editHistory(id, {}, f.actor)).toThrow(/直す内容/);
   });
 
   it("入力者が分からない場合は修正できない", () => {
@@ -192,7 +219,7 @@ describe("端末ID", () => {
       expect(patch.json().comment).toBe("直した");
       const detail = (await app.inject({ url: `/api/histories/${id}` })).json();
       expect(detail.edits[0]).toMatchObject({ field: "comment", after: "直した" });
-      const bad = await app.inject({ method: "PATCH", url: `/api/histories/${id}`, payload: { orderNo: "X-1", userName: "山田" } });
+      const bad = await app.inject({ method: "PATCH", url: `/api/histories/${id}`, payload: { destination: "X", userName: "山田" } });
       expect(bad.statusCode).toBe(400);
       const cancel = await app.inject({ method: "POST", url: `/api/histories/${id}/cancel`, payload: { reason: "誤り", userName: "山田" } });
       expect(cancel.json()).toMatchObject({ type: "CANCEL", cancelOf: id });

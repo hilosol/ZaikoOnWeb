@@ -999,23 +999,36 @@ export class InventoryService {
   }
 
   /**
-   * 履歴のコメントを直す（直せるのはコメントだけ）。修正前 → 修正後を修正履歴に記録する。
-   * 数量・区分の間違いは取消して入力し直す。受注番号・移管先・理由は記録どおりに残す。
-   * 空文字はコメントを消す。変わっていなければ何も記録しない。
+   * 履歴のコメント・受注番号を直す（直せるのはこの2つだけ）。項目ごとに修正前 → 修正後を修正履歴に記録する。
+   * 数量・区分の間違いは取消して入力し直す。移管先・理由は記録どおりに残す。
+   * 省略した項目は変えない。空文字は消す。変わっていない項目は記録しない。
    */
   editHistory(id: number, change: Record<string, unknown>, actor: Actor): History {
     const userName = this.requireUser(actor);
-    const other = Object.keys(change).filter((k) => k !== "comment");
-    if (other.length > 0) throw new ValidationError("履歴で直せるのはコメントだけです。");
-    if (typeof change.comment !== "string") throw new ValidationError("コメントを入力してください。");
-    const after = trimText(change.comment).replace(/\s*[\r\n]+\s*/g, " ");
-    if (after.length > Rules.commentMaxLength) throw new ValidationError(`コメントは${Rules.commentMaxLength}文字以内で入力してください。`);
+    const other = Object.keys(change).filter((k) => k !== "comment" && k !== "orderNo");
+    if (other.length > 0) throw new ValidationError("履歴で直せるのはコメントと受注番号だけです。");
+    if (change.comment === undefined && change.orderNo === undefined) throw new ValidationError("直す内容を入力してください。");
+
+    let comment: string | undefined;
+    if (change.comment !== undefined) {
+      if (typeof change.comment !== "string") throw new ValidationError("コメントの形式が正しくありません。");
+      comment = trimText(change.comment).replace(/\s*[\r\n]+\s*/g, " ");
+      if (comment.length > Rules.commentMaxLength) throw new ValidationError(`コメントは${Rules.commentMaxLength}文字以内で入力してください。`);
+    }
+    // 受注番号はリストの表記にそろえる（入出庫のときと同じ規則）
+    const orderNo = change.orderNo !== undefined ? (this.normalizeOrderNo(change.orderNo) ?? "") : undefined;
+
     return transaction(this.db, () => {
       const h = this.getHistory(id);
       if (h.type === "CANCEL") throw new ValidationError("取消の履歴は修正できません。");
-      if ((h.comment ?? "") !== after) {
-        this.db.prepare("UPDATE histories SET comment = ? WHERE id = ?").run(after || null, id);
-        this.insertHistoryEdit(id, "comment", h.comment ?? "", after, { ...actor, userName });
+      const a = { ...actor, userName };
+      if (comment !== undefined && (h.comment ?? "") !== comment) {
+        this.db.prepare("UPDATE histories SET comment = ? WHERE id = ?").run(comment || null, id);
+        this.insertHistoryEdit(id, "comment", h.comment ?? "", comment, a);
+      }
+      if (orderNo !== undefined && (h.orderNo ?? "") !== orderNo) {
+        this.db.prepare("UPDATE histories SET order_no = ? WHERE id = ?").run(orderNo || null, id);
+        this.insertHistoryEdit(id, "orderNo", h.orderNo ?? "", orderNo, a);
       }
       return this.getHistory(id);
     });

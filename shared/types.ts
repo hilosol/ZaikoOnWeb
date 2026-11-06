@@ -146,9 +146,10 @@ export const HistoryFieldLabels: Record<string, string> = {
   cancel: "取消",
 };
 
-/** 履歴で直せるのはコメントだけ（数量・区分は取消して入力し直す） */
+/** 履歴で直せるのはコメントと受注番号だけ（数量・区分は取消して入力し直す）。省略した項目は変えない */
 export interface HistoryEditRequest {
-  comment: string;
+  comment?: string;
+  orderNo?: string;
   userName: string;
 }
 
