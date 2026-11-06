@@ -57,10 +57,10 @@ async function registerProduct(page, { code, name, category, initial, warning, i
   fs.rmSync(SHOTS, { recursive: true, force: true });
   fs.mkdirSync(SHOTS, { recursive: true });
 
-  // 受注番号リスト（PowerShell の Set-Content 既定の Shift_JIS で作られた場合を想定して UTF-8 以外でも読めるか確認するため、ここでは BOM 付き UTF-8）
+  // 紐づけIDリスト link-ids.txt（PowerShell の Set-Content 既定の Shift_JIS で作られた場合を想定して UTF-8 以外でも読めるか確認するため、ここでは BOM 付き UTF-8）
   fs.mkdirSync(DATA, { recursive: true });
   fs.writeFileSync(
-    path.join(DATA, "受注番号リスト.txt"),
+    path.join(DATA, "link-ids.txt"),
     "\uFEFFAWO-26008_湖北工業_AW610M\r\nYHO-26002_京都大学_HMP-400\r\nYHO-26042_キオクシア_高温プローバー\r\n",
   );
   const server = spawn("node", ["--disable-warning=ExperimentalWarning", path.join(ROOT, "dist/server.mjs")], {
@@ -992,7 +992,7 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     // 設定画面にリストの状態
     await page.getByRole("button", { name: "設定" }).click();
     await page.getByTestId("order-list-status").waitFor();
-    check("設定：受注番号リストの件数を表示", (await page.getByTestId("order-list-status").textContent()).startsWith("3件"));
+    check("設定：紐づけIDリスト（link-ids.txt）の件数を表示", (await page.getByTestId("order-list-status").textContent()).startsWith("3件"));
 
 
     // 履歴CSVの自動保存

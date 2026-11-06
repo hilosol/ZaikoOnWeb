@@ -232,7 +232,7 @@ const clock = new DemoClock();
 const db = openDatabase(path.join(outDir, "zaiko.db"));
 const images = new FileImageStore(outDir);
 
-// 受注番号リスト（案件フォルダ名の形。前年度・今年度の案件）
+// 紐づけIDリスト link-ids.txt（案件フォルダ名の形。前年度・今年度の案件）
 const orderLines: string[] = [];
 for (const fy of [25, 26]) {
   for (let n = 1; n <= 22; n++) {
@@ -240,7 +240,7 @@ for (const fy of [25, 26]) {
     orderLines.push(`${pick(["YHO", "YHO", "YHO", "EBO", "AWO"])}-${fy}${String(n).padStart(3, "0")}_${pick(CUSTOMERS)}_${pick(MODELS)}`);
   }
 }
-fs.writeFileSync(path.join(outDir, "受注番号リスト.txt"), "﻿" + orderLines.join("\r\n") + "\r\n");
+fs.writeFileSync(path.join(outDir, "link-ids.txt"), "﻿" + orderLines.join("\r\n") + "\r\n");
 const orderNumbers = orderLines.map((l) => l.split("_")[0]!);
 const orderList = { find: (n: string) => (orderNumbers.includes(n) ? { number: n, name: "" } : null) };
 
@@ -427,4 +427,4 @@ for (const p of products.slice(0, 150).filter((_, i) => i % 23 === 5)) {
 db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
 db.close();
 console.log(`デモデータを作成しました: ${outDir}`);
-console.log(`  商品 ${products.length} 件、入出庫 約 ${ops} 件（取消 ${cancels} 件）、受注番号リスト ${orderLines.length} 件`);
+console.log(`  商品 ${products.length} 件、入出庫 約 ${ops} 件（取消 ${cancels} 件）、紐づけIDリスト ${orderLines.length} 件`);

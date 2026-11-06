@@ -12,7 +12,7 @@ import { SettingsStore } from "./settingsStore.js";
 import { GeneralSettingsService } from "./generalSettings.js";
 import { CsvLogExporter } from "./logExport.js";
 import { lanAddresses } from "./network.js";
-import { OrderNumberList } from "./orderNumbers.js";
+import { OrderNumberList, resolveOrderListFile } from "./orderNumbers.js";
 import { Updater } from "./updater.js";
 import { BackupService } from "./backup.js";
 import { APP_VERSION } from "./version.js";
@@ -21,7 +21,7 @@ import { APP_VERSION } from "./version.js";
  * 起動処理。設定は環境変数で変更できる（start.bat で指定）。
  *   ZAIKO_PORT      待ち受けポート（既定 28003）
  *   ZAIKO_DATA_DIR  データの保存先（既定: このプログラムと同じ場所の data フォルダ）
- *   ZAIKO_ORDER_LIST 受注番号リストのファイル（既定: データの保存先の 受注番号リスト.txt）
+ *   ZAIKO_ORDER_LIST 紐づけIDリストのファイル（既定: データの保存先の link-ids.txt。旧名 受注番号リスト.txt だけがあればそれ）
  *   ZAIKO_DEMO      1 = デモ（お試し・説明用）環境。画面に「デモ」と表示する（画面からの更新は使えない）
  *   ZAIKO_UPDATE_ROOT 画面からの更新で扱うフォルダ（テスト用。既定: このプログラムのフォルダ）
  */
@@ -46,7 +46,7 @@ const db = openDatabase(path.join(dataDir, "zaiko.db"), (fromVersion) => {
 });
 const images = new FileImageStore(dataDir);
 const isDemo = process.env.ZAIKO_DEMO === "1";
-const orderListFile = path.resolve(process.env.ZAIKO_ORDER_LIST ?? path.join(dataDir, "受注番号リスト.txt"));
+const orderListFile = resolveOrderListFile(dataDir, process.env.ZAIKO_ORDER_LIST);
 const orderList = new OrderNumberList(orderListFile);
 const service = new InventoryService(db, images, systemClock, orderList);
 const settingsStore = new SettingsStore(db);

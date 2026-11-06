@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Rules } from "../../shared/types.js";
 import { buildApp } from "../src/app.js";
 import { InventoryService } from "../src/inventory.js";
-import { decodeText, OrderNumberList, parseOrderList } from "../src/orderNumbers.js";
+import { decodeText, OrderNumberList, parseOrderList, resolveOrderListFile } from "../src/orderNumbers.js";
 import { createFixture, type Fixture } from "./helpers.js";
 
 describe("受注番号リストの解釈", () => {
@@ -65,7 +65,7 @@ describe("受注番号の記録", () => {
 
   beforeEach(() => {
     f = createFixture();
-    file = path.join(f.dir, "受注番号リスト.txt");
+    file = path.join(f.dir, "link-ids.txt");
     fs.writeFileSync(file, "YHO-26002_京都大学_HMP-400\nYHO-26003_NANOIONICS KOREA_HMP-400\n");
     list = new OrderNumberList(file);
     service = new InventoryService(f.db, f.images, f.clock, list);
@@ -122,5 +122,21 @@ describe("受注番号の記録", () => {
     } finally {
       await app.close();
     }
+  });
+});
+
+describe("紐づけIDリストのファイルの場所", () => {
+  const dataDir = path.resolve("/data");
+  const has = (...names: string[]) => (p: string) => names.some((n) => p === path.join(dataDir, n));
+  it("既定は link-ids.txt", () => {
+    expect(resolveOrderListFile(dataDir, undefined, has())).toBe(path.join(dataDir, "link-ids.txt"));
+    expect(resolveOrderListFile(dataDir, undefined, has("link-ids.txt", "受注番号リスト.txt"))).toBe(path.join(dataDir, "link-ids.txt"));
+  });
+  it("link-ids.txt が無く旧名だけあれば旧名を読む", () => {
+    expect(resolveOrderListFile(dataDir, undefined, has("受注番号リスト.txt"))).toBe(path.join(dataDir, "受注番号リスト.txt"));
+  });
+  it("環境変数の指定が最優先（空なら無視）", () => {
+    expect(resolveOrderListFile(dataDir, "/other/list.txt", has("link-ids.txt"))).toBe(path.resolve("/other/list.txt"));
+    expect(resolveOrderListFile(dataDir, "  ", has())).toBe(path.join(dataDir, "link-ids.txt"));
   });
 });

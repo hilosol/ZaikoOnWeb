@@ -1,3 +1,4 @@
+import path from "node:path";
 import fs from "node:fs";
 import { Rules, type OrderListStatus, type OrderNumber } from "../../shared/types.js";
 import { formatLocal } from "./clock.js";
@@ -57,7 +58,7 @@ export function parseOrderList(text: string): { items: OrderNumber[]; skipped: n
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
 /**
- * 受注番号リストファイル（data\受注番号リスト.txt）。
+ * 紐づけIDリストファイル（data\link-ids.txt）。
  * ファイルの更新日時・サイズが変わったときだけ読み直す（毎回の読み込みを避けつつ、置き換えたらすぐ反映する）。
  * 読めなかった場合は前回読めた内容を使い続け、理由を状態に残す。
  */
@@ -120,4 +121,17 @@ export class OrderNumberList {
     this.refresh();
     return this.byKey.get(searchKey(number)) ?? null;
   }
+}
+
+/** 紐づけIDリストの既定のファイル名（日本語名は zip の展開などで文字化けしやすいため英語） */
+export const ORDER_LIST_FILE = "link-ids.txt";
+/** 以前のファイル名。新しい名前のファイルが無く、こちらがあれば読む（置き換えずに使い続けられるように） */
+export const LEGACY_ORDER_LIST_FILE = "受注番号リスト.txt";
+
+/** 紐づけIDリストのファイルの場所。環境変数で指定があればそれ、無ければ data の link-ids.txt（旧名のみあれば旧名） */
+export function resolveOrderListFile(dataDir: string, envPath: string | undefined, exists: (p: string) => boolean = fs.existsSync): string {
+  if (envPath && envPath.trim() !== "") return path.resolve(envPath);
+  const current = path.join(dataDir, ORDER_LIST_FILE);
+  const legacy = path.join(dataDir, LEGACY_ORDER_LIST_FILE);
+  return !exists(current) && exists(legacy) ? legacy : current;
 }

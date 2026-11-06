@@ -23,7 +23,8 @@ npm run dev       # 開発用（画面 5173 / API 28003）
 変更後は `npm test` と `npm run build` が通ること。画面を変えたら `npm run e2e` も。
 
 ## 守ること
-- `data/`（DB・商品写真・受注番号リスト・メール設定）と `dist/` はコミットしない（.gitignore 済み）。顧客名などの実データをテストやコードに入れない
+- `data/`（DB・商品写真・紐づけIDリスト link-ids.txt・メール設定）と `dist/` はコミットしない（.gitignore 済み）。顧客名などの実データをテストやコードに入れない
+- data に作るファイル・フォルダの名前は英語にする（日本語名は zip の展開などで文字化けしやすい）
 - `.bat` は **ASCII のみ・改行 CRLF**（日本語を入れるとサーバーPCで文字化けする）
 - 待ち受けポートの既定値は 28003。bat には直接書かず、`load-settings.bat` が既定値を設定し、サーバーPCごとの `settings.bat`（.gitignore 済み、見本は `settings.example.bat`）で上書きする。既定値は `load-settings.bat` / `settings.example.bat` / `server/src/main.ts` でそろえる（`server/test/batFiles.test.ts` で確認）
 - 社内LANからの接続だけを受け付ける（`network.ts` の判定を緩めない）
