@@ -5,6 +5,7 @@ import { api, errorMessage } from "../api";
 import { AdjustStockDialog } from "../components/AdjustStockDialog";
 import { QrLabelDialog } from "../components/QrLabelDialog";
 import { HistoryDialog } from "../components/HistoryDialog";
+import { TransferDialog } from "../components/TransferDialog";
 import { OrderNoField, useOrderNumbers } from "../components/OrderNoField";
 import { SupplierLinks } from "../components/Suppliers";
 import { ErrorBox, formatNumber, ProductImage, shortDateTime } from "../components/common";
@@ -430,6 +431,7 @@ function StockPanel({
   const [recent, setRecent] = useState<History[]>([]);
   const [labelOpen, setLabelOpen] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
   const [comment, setComment] = useState("");
   const [codeChanges, setCodeChanges] = useState<CodeChange[]>([]);
 
@@ -462,7 +464,8 @@ function StockPanel({
   const qty = parseQuantity(qtyText);
   const step = (d: number) => setQtyText(String(Math.min(Rules.maxQuantityPerOperation, Math.max(1, (qty ?? 1) + d))));
 
-  const submit = async (type: "IN" | "OUT") => {
+  /** 入庫・出庫・移管。移管は TransferDialog で移管先を入力してから呼ぶ */
+  const submit = async (type: "IN" | "OUT" | "TRANSFER", destination?: string) => {
     const userName = app.requireUser();
     if (!userName) return;
     if (qty === null) {
@@ -471,10 +474,14 @@ function StockPanel({
     }
     setBusy(true);
     try {
-      const updated = await api.changeStock(product.id, { type, quantity: qty, userName, comment, orderNo });
-      app.toast(
-        `「${updated.name}」を ${formatNumber(qty)} 個${MovementLabels[type]}しました（在庫 ${formatNumber(updated.stock)}${orderNo.trim() ? `・紐づけ ${orderNo.trim()}` : ""}）`,
-      );
+      const updated = await api.changeStock(product.id, { type, quantity: qty, userName, destination, comment, orderNo });
+      const extras = [
+        destination ? `移管先 ${destination}` : "",
+        `在庫 ${formatNumber(updated.stock)}`,
+        orderNo.trim() ? `紐づけ ${orderNo.trim()}` : "",
+      ].filter((t) => t !== "");
+      app.toast(`「${updated.name}」を ${formatNumber(qty)} 個${MovementLabels[type]}しました（${extras.join("・")}）`);
+      setTransferOpen(false);
       orderNumbers.reload(); // 手入力した番号を候補に加える
       setQtyText("1");
       setComment("");
@@ -562,14 +569,34 @@ function StockPanel({
       />
       <OrderNoField value={orderNo} onChange={onOrderNoChange} data={orderNumbers.data} disabled={busy} />
 
+      {/* 左から 出庫・移管・入庫（スマホ用画面と同じ並び） */}
       <div className="stock-buttons">
-        <button type="button" className="button in large" disabled={busy || qty === null} onClick={() => void submit("IN")}>
-          入庫
-        </button>
         <button type="button" className="button out large" disabled={busy || qty === null} onClick={() => void submit("OUT")}>
           出庫
         </button>
+        <button
+          type="button"
+          className="button transfer large"
+          disabled={busy || qty === null}
+          onClick={() => {
+            if (app.requireUser()) setTransferOpen(true);
+          }}
+        >
+          移管
+        </button>
+        <button type="button" className="button in large" disabled={busy || qty === null} onClick={() => void submit("IN")}>
+          入庫
+        </button>
       </div>
+      {transferOpen && qty !== null && (
+        <TransferDialog
+          productName={product.name}
+          quantity={qty}
+          busy={busy}
+          onCancel={() => setTransferOpen(false)}
+          onSubmit={(dest) => void submit("TRANSFER", dest)}
+        />
+      )}
 
       <div className="stock-footer">
         <button type="button" className="button small" onClick={() => setAdjustOpen(true)}>

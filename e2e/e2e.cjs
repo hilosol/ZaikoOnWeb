@@ -148,6 +148,36 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     await page.getByRole("button", { name: "入庫", exact: true }).click();
     await page.locator(".toast", { hasText: "入庫しました" }).last().waitFor();
     check("入庫で在庫が増える（9→14）", (await page.getByTestId("stock-value").textContent()) === "14");
+
+    // 移管（PC）
+    const pcOrder = await page.locator(".stock-panel .stock-buttons button").allTextContents();
+    check("PC：ボタンの並びは 出庫・移管・入庫（スマホと同じ）", pcOrder.map((t) => t.trim()).join(",") === "出庫,移管,入庫", pcOrder.join(","));
+    await page.getByLabel("数量").fill("2");
+    await page.locator(".stock-panel").getByRole("button", { name: "移管", exact: true }).click();
+    const pcTransfer = page.getByRole("dialog", { name: "移管" });
+    await pcTransfer.waitFor();
+    await pcTransfer.getByRole("button", { name: "移管する" }).click();
+    check("PC：移管先が空なら止める", await pcTransfer.getByText("移管先（人・部署）を入力してください").isVisible());
+    await pcTransfer.getByLabel("移管先（人・部署）").fill("品証部 田中");
+    await pcTransfer.getByRole("button", { name: "移管する" }).click();
+    await page.locator(".toast", { hasText: "移管しました" }).last().waitFor();
+    check("PC：移管で在庫が減る（14→12）", (await page.getByTestId("stock-value").textContent()) === "12");
+    check("PC：移管の通知に移管先を表示", (await page.locator(".toast", { hasText: "移管しました" }).last().textContent()).includes("移管先 品証部 田中"));
+    check("PC：移管後は入力画面を閉じる", (await pcTransfer.count()) === 0);
+    await page.locator(".stock-panel .recent", { hasText: "→品証部 田中" }).first().waitFor();
+    check("PC：履歴に移管先を表示", true);
+    await page.getByLabel("数量").fill("100");
+    await page.locator(".stock-panel").getByRole("button", { name: "移管", exact: true }).click();
+    await pcTransfer.getByLabel("移管先（人・部署）").fill("品証部 田中");
+    await pcTransfer.getByRole("button", { name: "移管する" }).click();
+    await page.locator(".toast.error", { hasText: "在庫が不足" }).last().waitFor();
+    check("PC：在庫不足の移管は拒否し在庫は変わらない", (await page.getByTestId("stock-value").textContent()) === "12");
+    await pcTransfer.getByRole("button", { name: "キャンセル" }).click();
+    // 以降の確認のため在庫を 14 に戻す
+    await page.getByLabel("数量").fill("2");
+    await page.getByRole("button", { name: "入庫", exact: true }).click();
+    await page.locator(".toast", { hasText: "入庫しました" }).last().waitFor();
+    await page.waitForFunction(() => document.querySelector("[data-testid=stock-value]")?.textContent === "14");
     await page.waitForTimeout(400);
     await page.screenshot({ path: `${SHOTS}/03_desktop_inventory.png` });
 
