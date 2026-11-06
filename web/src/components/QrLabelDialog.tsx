@@ -10,8 +10,8 @@ const BASE_URL_KEY = "zaiko.qrBaseUrl";
 const isLocal = (host: string) => host === "localhost" || host === "::1" || host === "[::1]" || /^127\./.test(host);
 
 /**
- * QR に入れるアドレス（スマホから共有PCに届くアドレス）。
- * 1. 以前この画面で決めたアドレス  2. 今開いているアドレス（localhost 以外）  3. 共有PCの社内向けアドレス
+ * QR に入れるアドレス（スマホからサーバーPCに届くアドレス）。
+ * 1. 以前この画面で決めたアドレス  2. 今開いているアドレス（localhost 以外）  3. サーバーPCの社内向けアドレス
  */
 async function defaultBaseUrl(): Promise<string> {
   try {
@@ -88,7 +88,7 @@ export function QrLabelDialog({ product, onClose }: { product: Product; onClose:
       </div>
 
       <label className="field qr-base">
-        <span>QR に入れるアドレス（スマホから共有PCを開くアドレス）</span>
+        <span>QR に入れるアドレス（スマホからサーバーPCを開くアドレス）</span>
         <input type="text" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value.trim())} placeholder="http://192.168.0.210:28003" />
       </label>
       {!valid && baseUrl && (
@@ -97,7 +97,7 @@ export function QrLabelDialog({ product, onClose }: { product: Product; onClose:
         </div>
       )}
       {url && <p className="muted small qr-url">{url}</p>}
-      <p className="muted small">スマホの標準カメラで読み取ると、この商品のスマホ用画面が開きます。共有PCのIPアドレスが変わるとラベルの作り直しが必要です。</p>
+      <p className="muted small">スマホの標準カメラで読み取ると、この商品のスマホ用画面が開きます。サーバーPCのIPアドレスが変わるとラベルの作り直しが必要です。</p>
 
       <div className="m-dialog-actions">
         <button type="button" className="button" onClick={onClose}>

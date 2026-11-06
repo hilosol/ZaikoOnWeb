@@ -27,6 +27,9 @@ rem Stop the server if it is already running (so the new port setting takes effe
 schtasks /End /TN "ZaikoWeb" >nul 2>&1
 rem Start at PC boot (even before anyone logs on), as SYSTEM
 schtasks /Create /TN "ZaikoWeb" /TR "\"%~dp0run-server.bat\"" /SC ONSTART /RU SYSTEM /RL HIGHEST /F
+rem Task for the update button on this PC's screen (started only from the screen; never runs on a schedule)
+schtasks /Create /TN "ZaikoWebUpdate" /TR "\"%~dp0update-task.bat\"" /SC ONCE /ST 00:00 /SD 2000/01/01 /RU SYSTEM /RL HIGHEST /F >nul 2>&1
+if errorlevel 1 schtasks /Create /TN "ZaikoWebUpdate" /TR "\"%~dp0update-task.bat\"" /SC ONCE /ST 00:00 /RU SYSTEM /RL HIGHEST /F
 rem Allow access only from the same subnet (local network) on private/domain networks
 netsh advfirewall firewall delete rule name="ZaikoWeb" >nul 2>&1
 netsh advfirewall firewall add rule name="ZaikoWeb" dir=in action=allow protocol=TCP localport=%ZAIKO_PORT% profile=private,domain remoteip=localsubnet

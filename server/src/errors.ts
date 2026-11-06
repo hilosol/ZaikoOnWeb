@@ -23,6 +23,13 @@ export class NotFoundError extends AppError {
   }
 }
 
+/** この端末からは行えない操作 */
+export class ForbiddenError extends AppError {
+  constructor(message: string) {
+    super(403, message);
+  }
+}
+
 /** 他の人が先に更新した（楽観的排他制御） */
 export class ConflictError extends AppError {
   constructor(message = "他の人がこの商品を更新しました。画面を開き直してから再度操作してください。") {

@@ -225,13 +225,13 @@ export class InventoryService {
   /**
    * 端末の IP を入力者に紐づける。入力者を選ばずに操作したとき、この人として記録する。
    * - 1つの IP は1人まで。別の人に紐づいている場合は replace=true のときだけ付け替える
-   * - 127.0.0.1 など自分自身のアドレス（共有PC本体からの操作）は複数人が使うため紐づけできない
+   * - 127.0.0.1 など自分自身のアドレス（サーバーPC本体からの操作）は複数人が使うため紐づけできない
    */
   linkUserIp(userId: number, rawIp: unknown, rawNote: unknown, replace: unknown, actor: Actor): User {
     const ip = normalizeIp(trimText(rawIp));
     if (!ip || isIP(ip) === 0) throw new ValidationError("IP アドレスの形式が正しくありません（例: 192.168.1.23）。");
     if (ip === "::1" || ip.startsWith("127.")) {
-      throw new ValidationError("共有PC本体（127.0.0.1）は複数の人が使うため、紐づけできません。");
+      throw new ValidationError("サーバーPC本体（127.0.0.1）は複数の人が使うため、紐づけできません。");
     }
     const note = trimText(rawNote).replace(/\s*[\r\n]+\s*/g, " ");
     if (note.length > Rules.userIpNoteMaxLength) {

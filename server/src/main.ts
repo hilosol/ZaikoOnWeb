@@ -13,6 +13,7 @@ import { GeneralSettingsService } from "./generalSettings.js";
 import { CsvLogExporter } from "./logExport.js";
 import { lanAddresses } from "./network.js";
 import { OrderNumberList } from "./orderNumbers.js";
+import { Updater } from "./updater.js";
 import { APP_VERSION } from "./version.js";
 
 /**
@@ -20,7 +21,8 @@ import { APP_VERSION } from "./version.js";
  *   ZAIKO_PORT      待ち受けポート（既定 28003）
  *   ZAIKO_DATA_DIR  データの保存先（既定: このプログラムと同じ場所の data フォルダ）
  *   ZAIKO_ORDER_LIST 受注番号リストのファイル（既定: データの保存先の 受注番号リスト.txt）
- *   ZAIKO_DEMO      1 = デモ（お試し・説明用）環境。画面に「デモ」と表示する
+ *   ZAIKO_DEMO      1 = デモ（お試し・説明用）環境。画面に「デモ」と表示する（画面からの更新は使えない）
+ *   ZAIKO_UPDATE_ROOT 画面からの更新で扱うフォルダ（テスト用。既定: このプログラムのフォルダ）
  */
 const here = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.ZAIKO_PORT ?? 28003);
@@ -61,7 +63,8 @@ const mail = new MailNotifier({
   version: APP_VERSION,
 });
 const logExporter = new CsvLogExporter(service, path.join(dataDir, "logs"), systemClock);
-const app = buildApp({ service, images, mail, general, logExporter, orderList, demo: isDemo, webDir: fs.existsSync(webDir) ? webDir : undefined, logger: true });
+const updater = new Updater({ root: path.resolve(process.env.ZAIKO_UPDATE_ROOT ?? path.join(here, "..")), dataDir, clock: systemClock });
+const app = buildApp({ service, images, mail, general, updater: isDemo ? undefined : updater, logExporter, orderList, demo: isDemo, webDir: fs.existsSync(webDir) ? webDir : undefined, logger: true });
 
 /** 1日1回 DB をバックアップし、古いものを削除する（画像フォルダは対象外。README 参照）。 */
 function dailyBackup(): void {
@@ -106,6 +109,17 @@ function hourly(): void {
 hourly();
 const timer = setInterval(hourly, 60 * 60 * 1000); // 1時間ごとに確認（バックアップは日付が変わったら作成）
 timer.unref();
+
+/** プログラムの更新の確認：起動の2分後と、その後6時間ごと（GitHub とつながっていない場合は何もしない） */
+const UPDATE_CHECK_MS = 6 * 60 * 60 * 1000;
+const checkUpdate = () => {
+  if (isDemo) return;
+  updater.check().catch((error) => app.log.warn(error, "更新の確認に失敗しました"));
+};
+const updateFirst = setTimeout(checkUpdate, 2 * 60 * 1000);
+updateFirst.unref();
+const updateTimer = setInterval(checkUpdate, UPDATE_CHECK_MS);
+updateTimer.unref();
 
 /** 在庫警告メール：1分ごとに送信時刻を過ぎたか確認する */
 const mailTimer = setInterval(() => {

@@ -4,26 +4,44 @@ import { Rules, type ImportResult, type UnassignedIp, type User } from "../../..
 import { api, ApiError, errorMessage } from "../api";
 import { shortDateTime } from "../components/common";
 import { useApp } from "../context";
+import { UpdateSection, useUpdateStatus } from "../update";
 import { DevicesSection } from "./DevicesSection";
 import { LogExportSection } from "./LogExportSection";
 import { MailSettingsSection } from "./MailSettingsSection";
 import { OrderListSection } from "./OrderListSection";
 
 export function SettingsPage() {
+  // プログラムの更新はサーバーPCの画面にだけ出す（他の端末では status が null）
+  const update = useUpdateStatus();
+  const updateStatus = update.status;
+  const menu = updateStatus ? [...SECTIONS, { id: UPDATE_SECTION_ID, label: "プログラムの更新" }] : SECTIONS;
   return (
     <div className="settings">
-      <SettingsMenu />
+      <SettingsMenu sections={menu} />
       {SECTIONS.map(({ id, Component }) => (
         <div key={id} id={id} className="settings-anchor">
           <Component />
         </div>
       ))}
+      {updateStatus && (
+        <div id={UPDATE_SECTION_ID} className="settings-anchor">
+          <UpdateSection status={updateStatus} onChange={update.setStatus} />
+        </div>
+      )}
     </div>
   );
 }
 
 /** 設定の項目（上のメニューの順・表示名）。項目を増やすときはここに足す */
-const SECTIONS: { id: string; label: string; Component: ComponentType }[] = [
+interface SettingsSectionDef {
+  id: string;
+  label: string;
+  Component: ComponentType;
+}
+
+const UPDATE_SECTION_ID = "settings-update";
+
+const SECTIONS: SettingsSectionDef[] = [
   { id: "settings-users", label: "入力者", Component: UsersSection },
   { id: "settings-devices", label: "端末", Component: DevicesSection },
   { id: "settings-stock-csv", label: "在庫データ（CSV）", Component: StockCsvSection },
@@ -38,7 +56,7 @@ const SECTIONS: { id: string; label: string; Component: ComponentType }[] = [
  * 画面上部の見出し（app-header）とこのメニューに隠れない位置までスクロールする。
  * URL の # は画面の切り替えに使っているため、リンクではなくスクロールで移動する。
  */
-function SettingsMenu() {
+function SettingsMenu({ sections }: { sections: Pick<SettingsSectionDef, "id" | "label">[] }) {
   const menuRef = useRef<HTMLElement>(null);
   const [top, setTop] = useState(0);
 
@@ -62,7 +80,7 @@ function SettingsMenu() {
   };
   return (
     <nav ref={menuRef} className="settings-menu" style={{ top }} aria-label="設定の項目">
-      {SECTIONS.map(({ id, label }) => (
+      {sections.map(({ id, label }) => (
         <button key={id} type="button" className="chip" onClick={() => jump(id)}>
           {label}
         </button>
@@ -289,7 +307,7 @@ function UsersSection() {
               </button>
             )}
             {myIpLinkedTo && `（「${myIpLinkedTo.name}」に紐づけ済み）`}
-            {myIp && isLoopback(myIp) && "（共有PC本体は複数の人が使うため紐づけできません）"}
+            {myIp && isLoopback(myIp) && "（サーバーPC本体は複数の人が使うため紐づけできません）"}
           </p>
 
           {unassigned.length > 0 && (

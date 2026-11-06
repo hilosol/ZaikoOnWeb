@@ -2716,3 +2716,24 @@ button.product-image.zoomable:focus-visible {
   font-size: 13px;
   padding: 4px 8px;
 }
+
+/* ------------------------------------------------------------ プログラムの更新（サーバーPCの画面のみ） */
+
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: #fff8c5;
+  border-bottom: 1px solid #d4a72c;
+  font-size: 14px;
+}
+
+.update-commits {
+  max-height: 260px;
+  overflow: auto;
+  margin: 0 0 10px;
+  padding-left: 20px;
+  font-size: 14px;
+}

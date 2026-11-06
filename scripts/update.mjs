@@ -1,6 +1,8 @@
-// 共有PCでの更新：GitHub から最新を取得 → 依存パッケージを入れる → ビルド → サーバーを再起動
+// サーバーPCでの更新：GitHub から最新を取得 → 依存パッケージを入れる → ビルド → サーバーを再起動
 // update.bat から呼ぶ。手で実行する場合: node scripts/update.mjs [--force]
 //   --force  更新が無くてもビルドし直す
+// 画面の「更新する」からは、タスク ZaikoWebUpdate → update-task.bat 経由で呼ばれる（--unattended）。
+//   環境変数 ZAIKO_UPDATE_RESULT があれば、開始・結果を JSON で書く（画面に結果を表示するため）
 //
 // 失敗しても、動いていた版で使い続けられるようにする:
 // - 手元でファイルを書き換えていたら中止（取得した内容と混ざらないように）
@@ -14,6 +16,26 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const isWindows = process.platform === "win32";
 const TASK = "ZaikoWeb";
 const force = process.argv.includes("--force");
+const unattended = process.argv.includes("--unattended");
+const resultFile = process.env.ZAIKO_UPDATE_RESULT || "";
+const startedAt = new Date().toISOString();
+
+/** 画面に出す結果（成功・失敗とその理由） */
+function writeResult(state, message) {
+  if (!resultFile) return;
+  try {
+    const body = { state, message, startedAt, ...(state === "running" ? {} : { finishedAt: new Date().toISOString() }) };
+    fs.writeFileSync(resultFile, JSON.stringify(body, null, 2), "utf8");
+  } catch (e) {
+    console.error(`結果ファイルを書けませんでした: ${e.message}`);
+  }
+}
+writeResult("running", "更新中です");
+process.on("uncaughtException", (e) => {
+  console.error(`\n[中止] ${e.message}`);
+  writeResult("failed", e.message);
+  process.exit(1);
+});
 
 /** コマンドを実行して結果を返す（画面に出力をそのまま出す場合は inherit） */
 function run(cmd, args, { capture = false, allowFail = false } = {}) {
@@ -49,7 +71,20 @@ function step(text) {
 
 function fail(message) {
   console.error(`\n[中止] ${message}`);
+  writeResult("failed", message);
   process.exit(1);
+}
+
+/**
+ * 利用者として実行したときの GitHub への接続設定（証明書の扱い）を、このフォルダの設定に写す。
+ * 画面からの更新はサーバー（SYSTEM）として動き、利用者の設定（--global）を読めないため。
+ */
+function copyConnectionSettings() {
+  for (const key of ["http.sslBackend", "http.sslCAInfo"]) {
+    const global = run("git", ["config", "--global", "--get", key], { capture: true, allowFail: true });
+    const value = global.status === 0 ? global.stdout.trim() : "";
+    if (value) run("git", ["config", "--local", key, value], { capture: true, allowFail: true });
+  }
 }
 
 // ---------------------------------------------------------------- 1. 事前確認
@@ -66,6 +101,8 @@ if (dirty) {
   );
 }
 
+if (!unattended) copyConnectionSettings();
+
 // ---------------------------------------------------------------- 2. 最新を取得
 
 step("GitHub から最新を確認しています");
@@ -79,6 +116,7 @@ try {
 }
 if (local === remote && !force && fs.existsSync(path.join(root, "dist", "server.mjs"))) {
   console.log("すでに最新です。更新はありません。（ビルドし直す場合は --force を付けて実行）");
+  writeResult("done", "すでに最新でした。");
   process.exit(0);
 }
 if (local !== remote) {
@@ -126,5 +164,7 @@ if (hasTask) {
 }
 
 if (!ok) fail("ビルドに失敗したため、前の版で動かしています。上のエラーを確認してください。");
-console.log(`\n更新が完了しました（${git("log", "-1", "--format=%h %s")}）。`);
+const doneMessage = `更新が完了しました（${git("log", "-1", "--format=%h %s")}）。`;
+console.log(`\n${doneMessage}`);
+writeResult("done", doneMessage);
 if (!hasTask) console.log("start.bat でサーバーを起動してください。");

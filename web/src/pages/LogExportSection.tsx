@@ -32,7 +32,7 @@ export function LogExportSection() {
     <section className="card" aria-label="履歴のCSV保存">
       <h2>履歴のCSV保存（自動）</h2>
       <p className="muted small">
-        入出庫履歴・操作ログ・商品コードの変更履歴を、月ごとの CSV ファイルとして共有PCに保存しています（1時間ごと・サーバー終了時に更新）。
+        入出庫履歴・操作ログ・商品コードの変更履歴を、月ごとの CSV ファイルとしてサーバーPCに保存しています（1時間ごと・サーバー終了時に更新）。
         データベースとは別の控えとして、Excel でそのまま開けます。
       </p>
       {status && (

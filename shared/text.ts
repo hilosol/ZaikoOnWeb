@@ -47,7 +47,7 @@ export function matchesKeyword(
 
 /**
  * 読み取ったQR・バーコード（または入力）の内容から商品IDを取り出す。
- * QRにはスマホの標準カメラで開けるよう「http://共有PC:28003/m?id=AP-00001」のようなURLを入れているため、
+ * QRにはスマホの標準カメラで開けるよう「http://サーバーPC:28003/m?id=AP-00001」のようなURLを入れているため、
  * URL なら id パラメータを取り出し、それ以外はそのまま（ID だけの QR・バーコード・手入力）返す。
  */
 export function extractCode(raw: string): string {

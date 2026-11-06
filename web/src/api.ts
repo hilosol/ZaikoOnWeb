@@ -7,6 +7,7 @@ import type {
   MailSendResult,
   MailSettingsRequest,
   GeneralSettings,
+  UpdateStatusResponse,
   MailSettingsResponse,
   Product,
   SaveProductRequest,
@@ -35,7 +36,7 @@ export class ApiError extends Error {
 }
 
 const OFFLINE_MESSAGE =
-  "サーバーに接続できません。共有PCが起動しているか、同じネットワーク（社内Wi-Fi）に接続しているか確認してください。";
+  "サーバーに接続できません。サーバーPCが起動しているか、同じネットワーク（社内Wi-Fi）に接続しているか確認してください。";
 
 async function request<T>(method: string, url: string, body?: unknown, contentType = "application/json"): Promise<T> {
   let res: Response;
@@ -110,6 +111,10 @@ export const api = {
 
   logExport: () => request<LogExportStatus>("GET", "/api/log-export"),
   runLogExport: () => request<LogExportStatus>("POST", "/api/log-export/run", {}),
+  updateStatus: () => request<UpdateStatusResponse>("GET", "/api/update/status"),
+  updateCheck: () => request<UpdateStatusResponse>("POST", "/api/update/check"),
+  updateRun: () => request<UpdateStatusResponse>("POST", "/api/update/run", {}),
+  updateToken: (token: string) => request<UpdateStatusResponse>("PUT", "/api/update/token", { token }),
   generalSettings: () => request<GeneralSettings>("GET", "/api/settings/general"),
   saveGeneralSettings: (change: Partial<GeneralSettings>, userName: string) =>
     request<GeneralSettings>("PUT", "/api/settings/general", { ...change, userName }),

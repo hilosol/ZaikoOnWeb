@@ -68,7 +68,7 @@ describe("端末の IP と入力者の紐づけ", () => {
     expect(f.service.auditLogs(1)[0]!.detail).toContain("鈴木 から付け替え");
   });
 
-  it.each(["", "abc", "192.168.1.256", "192.168.1", "127.0.0.1", "::1", "::ffff:127.0.0.1"])("不正・共有PC本体の IP は拒否: %s", (ip) => {
+  it.each(["", "abc", "192.168.1.256", "192.168.1", "127.0.0.1", "::1", "::ffff:127.0.0.1"])("不正・サーバーPC本体の IP は拒否: %s", (ip) => {
     expect(() => f.service.linkUserIp(suzukiId, ip, "", false, f.actor)).toThrow(ValidationError);
   });
 
@@ -91,7 +91,7 @@ describe("端末の IP と入力者の紐づけ", () => {
     expect(() => f.service.unlinkUserIp("192.168.1.23", f.actor)).toThrow(/見つかりません/);
   });
 
-  it("名前なしで記録された IP を紐づけの候補として返す（紐づけ済み・共有PC本体は除く）", () => {
+  it("名前なしで記録された IP を紐づけの候補として返す（紐づけ済み・サーバーPC本体は除く）", () => {
     f.service.changeStock(productId(), "OUT", 1, phone);
     f.service.changeStock(productId(), "OUT", 1, phone);
     f.service.changeStock(productId(), "OUT", 1, { userName: "", clientIp: "192.168.1.50" });

@@ -3,7 +3,7 @@ import { DefaultGeneralSettings, type GeneralSettings } from "../../shared/types
 import { api } from "./api";
 
 /**
- * 全体の設定（決算月など。共有PCに保存し全端末で共通）。
+ * 全体の設定（決算月など。サーバーPCに保存し全端末で共通）。
  * 読み込むまで・失敗したときは既定値を使う（年度の選択肢が出ないより、既定の年度で出るほうがよいため）。
  * save は画面に先に反映し、保存に失敗したら元に戻してエラーを投げる。
  */

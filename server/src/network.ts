@@ -43,3 +43,19 @@ export function lanAddresses(): string[] {
   }
   return result;
 }
+
+/**
+ * このPC自身からの接続か（自分自身 127.0.0.1 / ::1、またはこのPCに割り当てられたアドレス）。
+ * サーバーPCの画面でだけ許す操作（プログラムの更新）の判定に使う。
+ */
+export function isSelfAddress(address: string | undefined | null, own: () => string[] = ownAddresses): boolean {
+  const ip = normalizeIp(address);
+  if (ip === "") return false;
+  if (ip === "::1" || (isIPv4(ip) && ip.startsWith("127."))) return true;
+  return own().includes(ip);
+}
+
+/** このPCに割り当てられたすべてのアドレス */
+export function ownAddresses(): string[] {
+  return Object.values(os.networkInterfaces()).flatMap((list) => (list ?? []).map((i) => normalizeIp(i.address)));
+}

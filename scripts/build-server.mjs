@@ -1,5 +1,5 @@
 // サーバーを依存ライブラリごと1ファイル（dist/server.mjs）にまとめる。
-// 共有PCには node_modules を置かずに、dist フォルダと Node.js だけで動かせる。
+// サーバーPCには node_modules を置かずに、dist フォルダと Node.js だけで動かせる。
 import { copyFileSync } from "node:fs";
 import { build } from "esbuild";
 

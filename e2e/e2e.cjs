@@ -11,6 +11,7 @@ const { startSmtpSink } = require("./smtp-sink.cjs");
 const SMTP_PORT = 2526;
 const ROOT = path.resolve(__dirname, "..");
 const DATA = path.join(os.tmpdir(), "zaiko-e2e-data");
+const UPDATE_ROOT = path.join(os.tmpdir(), "zaiko-e2e-update-root");
 const SHOTS = path.join(__dirname, "shots");
 const A = (f) => path.join(__dirname, "assets", f);
 const PORT = 8090;
@@ -49,6 +50,8 @@ async function registerProduct(page, { code, name, category, initial, warning, i
 
 (async () => {
   fs.rmSync(DATA, { recursive: true, force: true });
+  fs.rmSync(UPDATE_ROOT, { recursive: true, force: true });
+  fs.mkdirSync(path.join(UPDATE_ROOT, ".git"), { recursive: true });
   fs.rmSync(SHOTS, { recursive: true, force: true });
   fs.mkdirSync(SHOTS, { recursive: true });
 
@@ -59,7 +62,8 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     "\uFEFFAWO-26008_湖北工業_AW610M\r\nYHO-26002_京都大学_HMP-400\r\nYHO-26042_キオクシア_高温プローバー\r\n",
   );
   const server = spawn("node", ["--disable-warning=ExperimentalWarning", path.join(ROOT, "dist/server.mjs")], {
-    env: { ...process.env, ZAIKO_PORT: String(PORT), ZAIKO_DATA_DIR: DATA },
+    // 画面からの更新は、本物の GitHub に接続しないよう中身の無い .git フォルダを相手にする
+    env: { ...process.env, ZAIKO_PORT: String(PORT), ZAIKO_DATA_DIR: DATA, ZAIKO_UPDATE_ROOT: UPDATE_ROOT },
     stdio: ["ignore", "pipe", "pipe"],
   });
   let serverOut = "";
@@ -446,7 +450,7 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     await page.locator("section.mail-settings").waitFor();
     check("設定：操作ログの表は置かない（履歴ページの「操作ログ」で見る）", (await page.getByTestId("audit-log").count()) === 0);
     const menu = page.getByRole("navigation", { name: "設定の項目" });
-    check("設定：上に項目のメニュー", (await menu.getByRole("button").allTextContents()).join(",") === "入力者,端末,在庫データ（CSV）,紐づけIDリスト,履歴のCSV保存,メール通知,スマホからのアクセス");
+    check("設定：上に項目のメニュー（サーバーPCの画面ではプログラムの更新も）", (await menu.getByRole("button").allTextContents()).join(",") === "入力者,端末,在庫データ（CSV）,紐づけIDリスト,履歴のCSV保存,メール通知,スマホからのアクセス,プログラムの更新");
     await menu.getByRole("button", { name: "メール通知" }).click();
     await page.waitForTimeout(800);
     const mailTop = await page.locator("#settings-mail").evaluate((el) => el.getBoundingClientRect().top);
@@ -454,6 +458,20 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     check("設定：メニューを押すとその項目へ移動（メニューに隠れない）", mailTop >= menuBottom && mailTop < menuBottom + 40, `${mailTop} / ${menuBottom}`);
     await page.screenshot({ path: `${SHOTS}/06b_settings_menu.png` });
     await page.evaluate(() => window.scrollTo(0, 0));
+
+    // プログラムの更新（E2E はサーバーと同じPCから開くので「サーバーPCの画面」）
+    const upd = page.getByRole("region", { name: "プログラムの更新" });
+    check("更新：新しい版が無ければ画面上部のお知らせは出ない", (await page.locator(".update-banner").count()) === 0);
+    await upd.getByRole("button", { name: "今すぐ確認" }).click();
+    await upd.locator(".error-box", { hasText: "GitHub" }).waitFor();
+    check("更新：確認に失敗したら理由を表示", true, await upd.locator(".error-box").textContent());
+    check("更新：新しい版が無ければ更新ボタンは押せない", await upd.getByRole("button", { name: "内容を見て更新" }).isDisabled());
+    await upd.getByLabel("GitHub のトークン").fill("短すぎる");
+    await upd.getByRole("button", { name: "保存" }).click();
+    await page.locator(".toast.error", { hasText: "トークンの形式" }).last().waitFor();
+    check("更新：トークンの形式を確認する", (await upd.getByRole("heading", { name: /トークン/ }).textContent()).includes("未設定"));
+    const otherIp = await page.evaluate(async () => (await (await fetch("/api/update/status")).json()).local);
+    check("更新：サーバーPCの画面からは状態を取得できる", otherIp === true);
     await page.screenshot({ path: `${SHOTS}/06_desktop_settings.png`, fullPage: true });
 
     // メール通知の設定（E2E 用の SMTP サーバーに送る）
@@ -496,7 +514,7 @@ async function registerProduct(page, { code, name, category, initial, warning, i
 
     // 入力者と端末の IP の紐づけ
     const usersSec = page.locator("section[aria-label='入力者']");
-    check("この端末（共有PC本体）は紐づけできないと案内する", await usersSec.getByText("共有PC本体は複数の人が使うため").isVisible());
+    check("この端末（サーバーPC本体）は紐づけできないと案内する", await usersSec.getByText("サーバーPC本体は複数の人が使うため").isVisible());
     await usersSec.getByLabel("紐づける入力者").selectOption({ label: "鈴木" });
     await usersSec.getByLabel("IPアドレス").fill("192.168.1.23");
     await usersSec.getByLabel("端末のメモ").fill("iPhone");

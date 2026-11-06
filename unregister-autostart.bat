@@ -8,5 +8,6 @@ if errorlevel 1 (
 )
 schtasks /End /TN "ZaikoWeb" >nul 2>&1
 schtasks /Delete /TN "ZaikoWeb" /F
+schtasks /Delete /TN "ZaikoWebUpdate" /F >nul 2>&1
 netsh advfirewall firewall delete rule name="ZaikoWeb"
 pause

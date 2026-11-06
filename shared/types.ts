@@ -268,7 +268,7 @@ export interface OrderNumber {
 }
 
 export interface OrderListStatus {
-  /** リストファイルのパス（共有PC上） */
+  /** リストファイルのパス（サーバーPC上） */
   file: string;
   exists: boolean;
   count: number;
@@ -427,7 +427,31 @@ export interface HistorySearchResult<T> {
   summary?: { IN: number; OUT: number; TRANSFER: number };
 }
 
-/** 全体の設定（設定画面で変更。共有PCの DB に保存し、全端末で共通） */
+/** プログラムの更新の状態（サーバーPCの画面にだけ返す） */
+export interface UpdateStatus {
+  /** GitHub とつながったフォルダか（setup-github.bat 済み） */
+  supported: boolean;
+  /** 今の版（コミットの短い ID。未確認なら ""） */
+  current: string;
+  /** 新しい版があるか（最後に確認した時点） */
+  available: boolean;
+  /** 新しい版の変更内容（新しい順。「ID 件名」） */
+  commits: string[];
+  checkedAt: string | null;
+  /** 確認に失敗した理由（成功なら null） */
+  checkError: string | null;
+  /** 更新を実行中か */
+  running: boolean;
+  /** 最後の更新の結果 */
+  lastResult: { ok: boolean; message: string; finishedAt: string } | null;
+  /** GitHub の読み取り用トークンを設定済みか（トークン自体は返さない） */
+  tokenConfigured: boolean;
+}
+
+/** /api/update/status の応答。このPC以外からは local: false だけを返す */
+export type UpdateStatusResponse = ({ local: true } & UpdateStatus) | { local: false };
+
+/** 全体の設定（設定画面で変更。サーバーPCの DB に保存し、全端末で共通） */
 export interface GeneralSettings {
   /** 決算月（1〜12）。3 なら 4月〜翌3月 が1年度 */
   fiscalYearEndMonth: number;

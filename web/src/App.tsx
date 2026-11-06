@@ -9,6 +9,7 @@ import { ProductEditPage } from "./pages/ProductEditPage";
 import { HistoryPage } from "./history/HistoryPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { DemoBadge, useDemoFlag } from "./demo";
+import { UpdateBanner } from "./update";
 import { APP_VERSION } from "./version";
 
 interface Toast {
@@ -126,6 +127,7 @@ export function App() {
         </span>
       </header>
 
+      <UpdateBanner />
       <main className="app-main">
         {route.page === "inventory" && <InventoryPage />}
         {route.page === "new" && <ProductEditPage key={`new-${route.code}`} productId={null} initialCode={route.code} />}

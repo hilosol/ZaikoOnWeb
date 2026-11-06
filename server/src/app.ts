@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
-import { DefaultGeneralSettings, HistoryKindLabels, Rules, type ApiErrorBody, type ImageChange, type OrderNumbersResponse, type WhoAmI } from "../../shared/types.js";
+import { DefaultGeneralSettings, HistoryKindLabels, Rules, type UpdateStatusResponse, type ApiErrorBody, type ImageChange, type OrderNumbersResponse, type WhoAmI } from "../../shared/types.js";
 
 /** "YYYY-MM-DD 00:00:00"（翌日の0時）→ その前日 "YYYYMMDD"（CSV のファイル名用） */
 function previousDay(toBefore: string): string {
@@ -11,14 +11,15 @@ function previousDay(toBefore: string): string {
 }
 import { auditLogsToCsv, codeChangesToCsv, historiesToCsv, historyEditRowsToCsv } from "./csv.js";
 import { productsToCsv } from "./productCsv.js";
-import { AppError, ValidationError } from "./errors.js";
+import { AppError, ForbiddenError, ValidationError } from "./errors.js";
 import { IMAGE_CONTENT_TYPES, type ImageStore } from "./images.js";
 import type { Actor, InventoryService } from "./inventory.js";
 import type { LogExportStatus } from "./logExport.js";
 import type { MailNotifier } from "./mail/notifier.js";
 import type { OrderNumberList } from "./orderNumbers.js";
 import { isDeviceId, newDeviceId } from "./devices.js";
-import { isLanAddress, lanAddresses, normalizeIp } from "./network.js";
+import { isLanAddress, isSelfAddress, lanAddresses, normalizeIp } from "./network.js";
+import type { Updater } from "./updater.js";
 import { APP_VERSION } from "./version.js";
 import type { GeneralSettingsService } from "./generalSettings.js";
 
@@ -31,6 +32,10 @@ export interface AppOptions {
   demo?: boolean;
   /** 受注番号リスト（未指定なら候補は最近入力した番号のみ） */
   orderList?: Pick<OrderNumberList, "list">;
+  /** プログラムの更新（未指定なら関連 API は「使えない」と返す） */
+  updater?: Pick<Updater, "status" | "check" | "start" | "saveToken">;
+  /** テスト用：このPC自身からの接続かの判定を差し替える */
+  isSelfAddress?: (ip: string) => boolean;
   /** 全体の設定（決算月など）。未指定なら既定値を返し、保存の API は 404 */
   general?: Pick<GeneralSettingsService, "get" | "save">;
   /** 履歴 CSV の自動書き出し（未指定なら関連 API は 404） */
@@ -169,6 +174,26 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const port = req.socket.localPort;
     return { urls: lanAddresses().map((ip) => `http://${ip}:${port}`) };
   });
+
+  // ------------------------------------------------------------ プログラムの更新（このPCの画面からだけ）
+
+  const isSelf = options.isSelfAddress ?? ((ip: string) => isSelfAddress(ip));
+  const updater = options.updater;
+  /** 他の端末には更新の存在自体を見せない（社内の人に「ネットにつながっている」と思わせないため） */
+  const requireSelf = (req: FastifyRequest) => {
+    if (!isSelf(clientIp(req))) throw new ForbiddenError("プログラムの更新は、サーバーPCの画面からだけ行えます。");
+    if (!updater) throw new ValidationError("この環境ではプログラムの更新を使えません。");
+    return updater;
+  };
+  app.get("/api/update/status", async (req): Promise<UpdateStatusResponse> =>
+    isSelf(clientIp(req)) && updater ? { local: true, ...updater.status() } : { local: false },
+  );
+  app.post("/api/update/check", async (req) => ({ local: true, ...(await requireSelf(req).check()) }));
+  app.post("/api/update/run", async (req) => {
+    bodyOf(req);
+    return { local: true, ...(await requireSelf(req).start()) };
+  });
+  app.put("/api/update/token", async (req) => ({ local: true, ...(await requireSelf(req).saveToken(bodyOf(req).token)) }));
 
   // ------------------------------------------------------------ 全体の設定（決算月など）
 

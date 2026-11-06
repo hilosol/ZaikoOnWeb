@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { OrderNumbersResponse } from "../../../shared/types";
 import { api, errorMessage } from "../api";
 
-/** 受注番号リスト（共有PCのリストファイル）の読み込み状態 */
+/** 受注番号リスト（サーバーPCのリストファイル）の読み込み状態 */
 export function OrderListSection() {
   const [data, setData] = useState<OrderNumbersResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +23,7 @@ export function OrderListSection() {
     <section className="card" aria-label="紐づけIDリスト">
       <h2>紐づけIDリスト（受注番号等）</h2>
       <p className="muted small">
-        入出庫の「紐づけID」欄の候補です（ファイル名は 受注番号リスト.txt のまま）。共有PCのリストファイル（1行1件。「受注番号_案件名」＝案件フォルダ名そのまま、または番号だけ）を読みます。
+        入出庫の「紐づけID」欄の候補です（ファイル名は 受注番号リスト.txt のまま）。サーバーPCのリストファイル（1行1件。「受注番号_案件名」＝案件フォルダ名そのまま、または番号だけ）を読みます。
         ファイルを置き換えると自動で反映されます。リストに無い番号も入力できます。
       </p>
       {error && <div className="error-box">{error}</div>}

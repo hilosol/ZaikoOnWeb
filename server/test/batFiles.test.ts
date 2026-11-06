@@ -3,15 +3,15 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * 共有PC用の .bat ファイルの約束事を確認する（Windows でしか実行できないので、中身の静的チェックのみ）。
- * - ASCII のみ・改行 CRLF（日本語や LF だと共有PCで文字化け・誤動作する）
+ * サーバーPC用の .bat ファイルの約束事を確認する（Windows でしか実行できないので、中身の静的チェックのみ）。
+ * - ASCII のみ・改行 CRLF（日本語や LF だとサーバーPCで文字化け・誤動作する）
  * - ポートの既定値 28003 は load-settings.bat と settings.example.bat だけに書く（変更箇所を1か所にする）
  */
 const root = path.resolve(__dirname, "../..");
 const batFiles = fs.readdirSync(root).filter((f) => f.toLowerCase().endsWith(".bat"));
 const read = (f: string) => fs.readFileSync(path.join(root, f));
 
-describe("共有PC用の bat ファイル", () => {
+describe("サーバーPC用の bat ファイル", () => {
   it("bat ファイルがある", () => {
     expect(batFiles).toContain("load-settings.bat");
     expect(batFiles).toContain("settings.example.bat");
@@ -38,7 +38,7 @@ describe("共有PC用の bat ファイル", () => {
     expect(fs.readFileSync(path.join(root, "server/src/main.ts"), "utf8")).toContain("ZAIKO_PORT ?? 28003");
   });
 
-  it("settings.bat（共有PCごとの設定）は GitHub で管理しない", () => {
+  it("settings.bat（サーバーPCごとの設定）は GitHub で管理しない", () => {
     expect(fs.readFileSync(path.join(root, ".gitignore"), "utf8")).toMatch(/^\/settings\.bat$/m);
   });
 });

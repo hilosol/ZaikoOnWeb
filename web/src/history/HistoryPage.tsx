@@ -129,7 +129,7 @@ export function HistoryPage({ productId }: { productId: number | null }) {
 
   const { preset, fiscalYear } = matchPreset(period, today, fiscalYears, startMonth);
 
-  /** 決算月を変える（共有PCに保存して次回も使う）。年度を選んでいたら、同じ年度の期間を新しい決算月で選び直す */
+  /** 決算月を変える（サーバーPCに保存して次回も使う）。年度を選んでいたら、同じ年度の期間を新しい決算月で選び直す */
   const changeEndMonth = (month: number) => {
     if (fiscalYear !== null) changePeriod(fiscalYearPeriod(fiscalYear, fiscalYearStartMonth(month)));
     general.save({ fiscalYearEndMonth: month }, app.userName).catch((e) => app.toast(errorMessage(e), "error"));
@@ -210,7 +210,7 @@ export function HistoryPage({ productId }: { productId: number | null }) {
               value={endMonth}
               onChange={(e) => changeEndMonth(Number(e.target.value))}
               aria-label="決算月"
-              title="年度の区切り（決算月）。選んだ月は共有PCに保存され、全端末で共通です"
+              title="年度の区切り（決算月）。選んだ月はサーバーPCに保存され、全端末で共通です"
             >
               {MONTHS.map((m) => (
                 <option key={m} value={m}>
