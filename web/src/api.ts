@@ -6,6 +6,7 @@ import type {
   History,
   MailSendResult,
   MailSettingsRequest,
+  GeneralSettings,
   MailSettingsResponse,
   Product,
   SaveProductRequest,
@@ -109,6 +110,9 @@ export const api = {
 
   logExport: () => request<LogExportStatus>("GET", "/api/log-export"),
   runLogExport: () => request<LogExportStatus>("POST", "/api/log-export/run", {}),
+  generalSettings: () => request<GeneralSettings>("GET", "/api/settings/general"),
+  saveGeneralSettings: (change: Partial<GeneralSettings>, userName: string) =>
+    request<GeneralSettings>("PUT", "/api/settings/general", { ...change, userName }),
   mailSettings: () => request<MailSettingsResponse>("GET", "/api/settings/mail"),
   saveMailSettings: (req: MailSettingsRequest) => request<MailSettingsResponse>("PUT", "/api/settings/mail", req),
   testMail: (req: MailSettingsRequest) => request<MailSendResult>("POST", "/api/settings/mail/test", req),

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AuditLabels,
+  fiscalYearStartMonth,
   HistoryFieldLabels,
   HistoryKindLabels,
   MovementLabels,
@@ -19,7 +20,8 @@ import { ErrorBox, formatNumber } from "../components/common";
 import { HistoryDialog } from "../components/HistoryDialog";
 import { OrderNoField, useOrderNumbers } from "../components/OrderNoField";
 import { useApp } from "../context";
-import { fiscalYearOf, fiscalYearPeriod, matchPreset, PresetLabels, presetPeriod, type Period, type PeriodPreset } from "./period";
+import { useGeneralSettings } from "../generalSettings";
+import { fiscalYearLabel, fiscalYearOf, fiscalYearPeriod, matchPreset, PresetLabels, presetPeriod, type Period, type PeriodPreset } from "./period";
 
 const PAGE_SIZE = 100;
 const KINDS = Object.keys(HistoryKindLabels) as HistoryKind[];
@@ -43,10 +45,11 @@ const ALL_USERS = "__all__";
 export function HistoryPage({ productId }: { productId: number | null }) {
   const app = useApp();
   const today = useMemo(() => new Date(), []);
+  const startMonth = fiscalYearStartMonth(useGeneralSettings().settings.fiscalYearEndMonth);
   const fiscalYears = useMemo(() => {
-    const now = fiscalYearOf(today);
+    const now = fiscalYearOf(today, startMonth);
     return Array.from({ length: FISCAL_YEARS_BACK }, (_, i) => now - i);
-  }, [today]);
+  }, [today, startMonth]);
 
   const [kind, setKind] = useState<HistoryKind>("movements");
   const [period, setPeriod] = useState<Period>(() => presetPeriod("3m", today));
@@ -121,7 +124,7 @@ export function HistoryPage({ productId }: { productId: number | null }) {
   };
   const changePeriod = resetPage(setPeriod);
 
-  const { preset, fiscalYear } = matchPreset(period, today, fiscalYears);
+  const { preset, fiscalYear } = matchPreset(period, today, fiscalYears, startMonth);
   const total = result?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const csvQuery = { ...query };
@@ -183,13 +186,13 @@ export function HistoryPage({ productId }: { productId: number | null }) {
             <select
               className={`plain-select small${fiscalYear !== null ? " active" : ""}`}
               value={fiscalYear ?? ""}
-              onChange={(e) => e.target.value && changePeriod(fiscalYearPeriod(Number(e.target.value)))}
+              onChange={(e) => e.target.value && changePeriod(fiscalYearPeriod(Number(e.target.value), startMonth))}
               aria-label="年度"
             >
               <option value="">年度…</option>
               {fiscalYears.map((y) => (
                 <option key={y} value={y}>
-                  {y}年度
+                  {fiscalYearLabel(y, startMonth)}
                 </option>
               ))}
             </select>

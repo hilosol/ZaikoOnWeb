@@ -427,8 +427,23 @@ export interface HistorySearchResult<T> {
   summary?: { IN: number; OUT: number; TRANSFER: number };
 }
 
-/** 年度の始まりの月（4 = 4月〜翌3月）。会社の年度に合わせてここを変える */
-export const FISCAL_YEAR_START_MONTH = 4;
+/** 全体の設定（設定画面で変更。共有PCの DB に保存し、全端末で共通） */
+export interface GeneralSettings {
+  /** 決算月（1〜12）。3 なら 4月〜翌3月 が1年度 */
+  fiscalYearEndMonth: number;
+}
+
+export const DefaultGeneralSettings: GeneralSettings = { fiscalYearEndMonth: 3 };
+
+/** 決算月が正しい値か（1〜12 の整数） */
+export function isValidMonth(v: unknown): v is number {
+  return typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= 12;
+}
+
+/** 決算月 → 年度の始まりの月（3月決算 → 4月、12月決算 → 1月） */
+export function fiscalYearStartMonth(endMonth: number): number {
+  return (endMonth % 12) + 1;
+}
 
 export const HistorySearchLimits = {
   pageSizeMax: 500,

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
-import { HistoryKindLabels, Rules, type ApiErrorBody, type ImageChange, type OrderNumbersResponse, type WhoAmI } from "../../shared/types.js";
+import { DefaultGeneralSettings, HistoryKindLabels, Rules, type ApiErrorBody, type ImageChange, type OrderNumbersResponse, type WhoAmI } from "../../shared/types.js";
 
 /** "YYYY-MM-DD 00:00:00"（翌日の0時）→ その前日 "YYYYMMDD"（CSV のファイル名用） */
 function previousDay(toBefore: string): string {
@@ -20,6 +20,7 @@ import type { OrderNumberList } from "./orderNumbers.js";
 import { isDeviceId, newDeviceId } from "./devices.js";
 import { isLanAddress, lanAddresses, normalizeIp } from "./network.js";
 import { APP_VERSION } from "./version.js";
+import type { GeneralSettingsService } from "./generalSettings.js";
 
 export interface AppOptions {
   service: InventoryService;
@@ -30,6 +31,8 @@ export interface AppOptions {
   demo?: boolean;
   /** 受注番号リスト（未指定なら候補は最近入力した番号のみ） */
   orderList?: Pick<OrderNumberList, "list">;
+  /** 全体の設定（決算月など）。未指定なら既定値を返し、保存の API は 404 */
+  general?: Pick<GeneralSettingsService, "get" | "save">;
   /** 履歴 CSV の自動書き出し（未指定なら関連 API は 404） */
   logExporter?: { getStatus(): LogExportStatus; run(): LogExportStatus };
   /** ビルド済みの画面（index.html のあるフォルダ）。未指定なら API のみ */
@@ -166,6 +169,14 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const port = req.socket.localPort;
     return { urls: lanAddresses().map((ip) => `http://${ip}:${port}`) };
   });
+
+  // ------------------------------------------------------------ 全体の設定（決算月など）
+
+  const general = options.general;
+  app.get("/api/settings/general", async () => general?.get() ?? { ...DefaultGeneralSettings });
+  if (general) {
+    app.put("/api/settings/general", async (req) => general.save(bodyOf(req), actorOf(req)));
+  }
 
   // ------------------------------------------------------------ メール通知の設定
 

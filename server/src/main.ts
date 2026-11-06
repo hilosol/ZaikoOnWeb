@@ -9,6 +9,7 @@ import { InventoryService } from "./inventory.js";
 import { SmtpMailer } from "./mail/mailer.js";
 import { MailNotifier } from "./mail/notifier.js";
 import { SettingsStore } from "./settingsStore.js";
+import { GeneralSettingsService } from "./generalSettings.js";
 import { CsvLogExporter } from "./logExport.js";
 import { lanAddresses } from "./network.js";
 import { OrderNumberList } from "./orderNumbers.js";
@@ -46,8 +47,10 @@ const isDemo = process.env.ZAIKO_DEMO === "1";
 const orderListFile = path.resolve(process.env.ZAIKO_ORDER_LIST ?? path.join(dataDir, "受注番号リスト.txt"));
 const orderList = new OrderNumberList(orderListFile);
 const service = new InventoryService(db, images, systemClock, orderList);
+const settingsStore = new SettingsStore(db);
+const general = new GeneralSettingsService(settingsStore, service);
 const mail = new MailNotifier({
-  store: new SettingsStore(db),
+  store: settingsStore,
   inventory: service,
   mailer: new SmtpMailer(),
   clock: systemClock,
@@ -58,7 +61,7 @@ const mail = new MailNotifier({
   version: APP_VERSION,
 });
 const logExporter = new CsvLogExporter(service, path.join(dataDir, "logs"), systemClock);
-const app = buildApp({ service, images, mail, logExporter, orderList, demo: isDemo, webDir: fs.existsSync(webDir) ? webDir : undefined, logger: true });
+const app = buildApp({ service, images, mail, general, logExporter, orderList, demo: isDemo, webDir: fs.existsSync(webDir) ? webDir : undefined, logger: true });
 
 /** 1日1回 DB をバックアップし、古いものを削除する（画像フォルダは対象外。README 参照）。 */
 function dailyBackup(): void {
