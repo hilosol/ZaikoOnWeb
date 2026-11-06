@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fiscalYearStartMonth } from "../../../shared/types";
-import { fiscalYearLabel, fiscalYearOf, fiscalYearPeriod, lastMonths, matchPreset, presetPeriod } from "./period";
+import { fiscalYearOf, fiscalYearPeriod, lastMonths, matchPreset, presetPeriod } from "./period";
 
 const d = (y: number, m: number, day: number) => new Date(y, m - 1, day);
 
@@ -21,7 +21,6 @@ describe("期間", () => {
     expect(fiscalYearOf(d(2026, 4, 1), 4)).toBe(2026);
     expect(fiscalYearPeriod(2026, 4)).toEqual({ from: "2026-04-01", to: "2027-03-31" });
     expect(fiscalYearPeriod(2027, 4)).toEqual({ from: "2027-04-01", to: "2028-03-31" });
-    expect(fiscalYearLabel(2026, 4)).toBe("2026年度（2026/4〜2027/3）");
   });
   it("12月決算（1月始まり）は暦年と同じ", () => {
     expect(fiscalYearStartMonth(12)).toBe(1);
@@ -40,7 +39,6 @@ describe("期間", () => {
     expect(fiscalYearOf(d(2026, 9, 30), 10)).toBe(2025);
     expect(fiscalYearOf(d(2026, 10, 1), 10)).toBe(2026);
     expect(fiscalYearPeriod(2026, 10)).toEqual({ from: "2026-10-01", to: "2027-09-30" });
-    expect(fiscalYearLabel(2025, 10)).toBe("2025年度（2025/10〜2026/9）");
   });
   it("今の期間に一致するボタン・年度", () => {
     const today = d(2026, 11, 6);

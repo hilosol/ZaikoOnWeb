@@ -60,14 +60,6 @@ export function fiscalYearPeriod(year: number, startMonth: number): Period {
   return { from: ymd(start), to: ymd(end) };
 }
 
-/** 年度の選択肢の表示（例: 「2026年度（2026/4〜2027/3）」） */
-export function fiscalYearLabel(year: number, startMonth: number): string {
-  const p = fiscalYearPeriod(year, startMonth);
-  const [fy, fm] = p.from.split("-");
-  const [ty, tm] = p.to.split("-");
-  return `${year}年度（${fy}/${Number(fm)}〜${ty}/${Number(tm)}）`;
-}
-
 /** 今の期間がどのボタン・年度と一致するか（押したボタンを強調表示するため） */
 export function matchPreset(
   period: Period,

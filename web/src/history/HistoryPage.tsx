@@ -21,7 +21,7 @@ import { HistoryDialog } from "../components/HistoryDialog";
 import { OrderNoField, useOrderNumbers } from "../components/OrderNoField";
 import { useApp } from "../context";
 import { useGeneralSettings } from "../generalSettings";
-import { fiscalYearLabel, fiscalYearOf, fiscalYearPeriod, matchPreset, PresetLabels, presetPeriod, type Period, type PeriodPreset } from "./period";
+import { fiscalYearOf, fiscalYearPeriod, matchPreset, PresetLabels, presetPeriod, type Period, type PeriodPreset } from "./period";
 
 const PAGE_SIZE = 100;
 const KINDS = Object.keys(HistoryKindLabels) as HistoryKind[];
@@ -201,7 +201,7 @@ export function HistoryPage({ productId }: { productId: number | null }) {
               <option value="">年度…</option>
               {fiscalYears.map((y) => (
                 <option key={y} value={y}>
-                  {fiscalYearLabel(y, startMonth)}
+                  {y}年度
                 </option>
               ))}
             </select>

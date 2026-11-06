@@ -945,7 +945,7 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     check("履歴ページ：年度を選んだまま決算月を変えると、同じ年度を新しい区切りで選び直す",
       (await page.getByLabel("開始日").inputValue()) === `${fy}-01-01` && (await page.getByLabel("終了日").inputValue()) === `${fy}-12-31`,
       await page.getByLabel("開始日").inputValue());
-    check("履歴ページ：年度の選択肢に期間を表示", (await page.getByLabel("年度").locator("option").nth(1).textContent()).includes("/1〜"));
+    check("履歴ページ：年度の選択肢は「○年度」だけ（期間は開始日・終了日の欄で分かる）", /^\d{4}年度$/.test((await page.getByLabel("年度").locator("option").nth(1).textContent()).trim()));
     await page.waitForFunction(async () => (await (await fetch("/api/settings/general")).json()).fiscalYearEndMonth === 12);
     await page.reload();
     await page.getByTestId("history-table").waitFor();
