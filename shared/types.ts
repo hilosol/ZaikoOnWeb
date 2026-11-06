@@ -1,0 +1,384 @@
+/**
+ * サーバーと画面で共有する型・定数。
+ * 業務ルールの上限値はここに集約し、画面側の入力欄の制限とサーバー側の検証で同じ値を使う。
+ */
+
+export const Rules = {
+  codeMaxLength: 50,
+  nameMaxLength: 100,
+  categoryMaxLength: 50,
+  locationMaxLength: 100,
+  destinationMaxLength: 50,
+  noteMaxLength: 500,
+  summaryMaxLength: 500,
+  commentMaxLength: 200,
+  orderNoMaxLength: 50,
+  userNameMaxLength: 30,
+  userIpNoteMaxLength: 30,
+  /** 購入元：1商品あたりの件数・名前・URL の上限 */
+  maxSuppliers: 5,
+  supplierNameMaxLength: 50,
+  supplierUrlMaxLength: 500,
+  /** メール通知の宛先数の上限 */
+  maxMailRecipients: 20,
+  maxStock: 1_000_000,
+  maxQuantityPerOperation: 100_000,
+  /** 画面側で縮小した後の画像の上限 */
+  maxUploadBytes: 5 * 1024 * 1024,
+  /** 在庫CSVの取り込み */
+  maxImportRows: 5000,
+  maxImportBytes: 10 * 1024 * 1024,
+  imageMaxDimension: 1024,
+} as const;
+
+/**
+ * IN: 入庫 / OUT: 出庫 / TRANSFER: 人・部署への移管（在庫は減る） / INIT: 商品登録時の初期在庫
+ * ADJUST: 棚卸調整（CSV 取り込みで在庫数を合わせた。quantity は差の絶対値、増減はコメントに記録）
+ */
+export type MovementType = "IN" | "OUT" | "TRANSFER" | "INIT" | "ADJUST" | "CANCEL";
+
+/** 入庫の理由（スマホ画面の入庫で選ぶ）。集計できるよう決まった選択肢にする */
+export const InReasons = ["購入", "戻り", "その他"] as const;
+export type InReason = (typeof InReasons)[number];
+
+export const MovementLabels: Record<MovementType, string> = {
+  IN: "入庫",
+  OUT: "出庫",
+  TRANSFER: "移管",
+  INIT: "初期登録",
+  ADJUST: "棚卸調整",
+  CANCEL: "取消",
+};
+
+/** 取消できる区分（初期登録・棚卸調整は在庫調整で直す） */
+export const CancelableTypes: readonly MovementType[] = ["IN", "OUT", "TRANSFER"];
+
+export interface Product {
+  id: number;
+  code: string;
+  name: string;
+  category: string;
+  /** 保管場所（自由入力。複数ある場合は「上段A-1,上段B-1」のように区切る） */
+  location: string;
+  /** 概要（商品の説明。改行可。検索対象） */
+  summary: string;
+  /** 備考（商品ごとの固定メモ。改行可） */
+  note: string;
+  stock: number;
+  warningStock: number;
+  /** 画像のファイル名。null = 画像なし */
+  imageFile: string | null;
+  /** 購入元（登録順。0〜Rules.maxSuppliers 件） */
+  suppliers: Supplier[];
+  /** 簿外（帳簿に載せていない在庫）。在庫警告の対象には含める */
+  offBook: boolean;
+  /** 楽観的排他制御用。更新のたびに +1 */
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 購入元（仕入先）。URL は任意で、http / https のみ */
+export interface Supplier {
+  name: string;
+  /** 空文字 = URL なし */
+  url: string;
+}
+
+export interface History {
+  id: number;
+  productId: number | null;
+  productCode: string;
+  productName: string;
+  type: MovementType;
+  quantity: number;
+  stockAfter: number;
+  /** 移管先（移管の場合のみ） */
+  destination: string | null;
+  /** 操作時のコメント（任意） */
+  comment: string | null;
+  /** 入庫の理由（購入・戻り・その他。入庫以外・未指定は null） */
+  reason: string | null;
+  /** 受注番号（任意。入庫・出庫・移管で入力） */
+  orderNo: string | null;
+  /** 取消の履歴の場合、取り消した元の履歴の ID */
+  cancelOf: number | null;
+  /** 取り消された履歴の場合、取消の履歴の ID */
+  canceledBy: number | null;
+  /** 操作した端末の ID（端末ID導入前の履歴は null） */
+  deviceId: string | null;
+  userName: string;
+  clientIp: string;
+  createdAt: string;
+}
+
+/** 商品コードの変更履歴 */
+export interface CodeChange {
+  id: number;
+  /** 商品を削除した後も履歴は残す（その場合も ID はそのまま） */
+  productId: number;
+  oldCode: string;
+  newCode: string;
+  productName: string;
+  userName: string;
+  clientIp: string;
+  createdAt: string;
+}
+
+/** 履歴の修正（受注番号・コメント等の変更、取消）の記録 */
+export interface HistoryEdit {
+  id: number;
+  historyId: number;
+  /** orderNo / comment / destination / reason / cancel */
+  field: string;
+  before: string;
+  after: string;
+  userName: string;
+  clientIp: string;
+  createdAt: string;
+}
+
+export const HistoryFieldLabels: Record<string, string> = {
+  orderNo: "受注番号",
+  comment: "コメント",
+  destination: "移管先",
+  reason: "理由",
+  cancel: "取消",
+};
+
+/** 履歴で直せる項目（数量・区分は取消して入力し直す） */
+export interface HistoryEditRequest {
+  orderNo?: string;
+  comment?: string;
+  destination?: string;
+  reason?: string;
+  userName: string;
+}
+
+/** 端末（ブラウザ）。初回アクセス時に Cookie で ID を発行する */
+export interface Device {
+  id: string;
+  /** 紐づけた入力者（未紐づけは null） */
+  userId: number | null;
+  userName: string;
+  note: string;
+  /** 機種・ブラウザ（User-Agent から推定。例: iPhone / Safari） */
+  label: string;
+  lastIp: string;
+  firstSeen: string;
+  lastSeen: string;
+  /** 名前なしで記録された入出庫の件数（紐づけの手がかり） */
+  unnamedCount: number;
+}
+
+export interface User {
+  id: number;
+  name: string;
+  active: boolean;
+  /** この人に紐づけた端末の IP アドレス（入力者を選ばずに操作したとき、この人として記録する） */
+  ips: UserIp[];
+}
+
+export interface UserIp {
+  ip: string;
+  /** 端末のメモ（例: iPhone、事務所PC） */
+  note: string;
+}
+
+/** 名前なし（入力者未選択・未紐づけ）で記録された端末の IP（紐づけの候補） */
+export interface UnassignedIp {
+  ip: string;
+  count: number;
+  lastAt: string;
+}
+
+export interface WhoAmI {
+  ip: string;
+  deviceId: string;
+  /** この端末に紐づいた入力者（端末ID → IP の順。有効な人のみ。無ければ ""） */
+  userName: string;
+  source: "device" | "ip" | "";
+}
+
+export interface AuditLog {
+  id: number;
+  action: "PRODUCT_CREATE" | "PRODUCT_UPDATE" | "PRODUCT_DELETE" | "PRODUCT_IMPORT" | "USER_CHANGE" | "SETTINGS_CHANGE";
+  target: string;
+  detail: string;
+  userName: string;
+  clientIp: string;
+  createdAt: string;
+}
+
+export const AuditLabels: Record<AuditLog["action"], string> = {
+  PRODUCT_CREATE: "商品登録",
+  PRODUCT_UPDATE: "商品更新",
+  PRODUCT_DELETE: "商品削除",
+  PRODUCT_IMPORT: "CSV取込",
+  USER_CHANGE: "入力者設定",
+  SETTINGS_CHANGE: "設定変更",
+};
+
+/** 画像の変更内容 */
+export type ImageChange =
+  | { action: "keep" }
+  | { action: "remove" }
+  | { action: "replace"; uploadId: string };
+
+export interface ProductInput {
+  code: string;
+  name: string;
+  category: string;
+  location?: string;
+  note?: string;
+  summary?: string;
+  warningStock: number;
+  /** 簿外。省略（undefined）= 変更しない（新規は false） */
+  offBook?: boolean;
+  /** 購入元。省略（undefined）= 変更しない（CSV 取り込みなど購入元を扱わない経路のため） */
+  suppliers?: Supplier[];
+  /** 新規登録時のみ有効 */
+  initialStock?: number;
+}
+
+export interface SaveProductRequest extends ProductInput {
+  userName: string;
+  image: ImageChange;
+  /** 更新時に必須：画面で読み込んだ時点の version */
+  version?: number;
+}
+
+export interface StockRequest {
+  type: "IN" | "OUT" | "TRANSFER";
+  quantity: number;
+  userName: string;
+  /** 移管の場合は必須 */
+  destination?: string;
+  /** 任意のコメント */
+  comment?: string;
+  /** 入庫の理由（InReasons のいずれか。入庫のみ） */
+  reason?: string;
+  /** 受注番号（任意。リストに無い番号も入力可） */
+  orderNo?: string;
+}
+
+/** 受注番号リストの1件（リストファイルの「受注番号_案件名」を分けたもの） */
+export interface OrderNumber {
+  number: string;
+  /** 案件名（「_」より後ろ。無ければ ""） */
+  name: string;
+}
+
+export interface OrderListStatus {
+  /** リストファイルのパス（共有PC上） */
+  file: string;
+  exists: boolean;
+  count: number;
+  /** ファイルの更新日時 */
+  modifiedAt: string | null;
+  /** 読み込めなかった場合の理由（前回読めた内容を使い続ける） */
+  error: string;
+  /** 読み飛ばした行数（長すぎる等） */
+  skipped: number;
+}
+
+export interface OrderNumbersResponse {
+  items: OrderNumber[];
+  /** リストに無いが最近入力された番号（新しい順） */
+  recent: string[];
+  status: OrderListStatus;
+}
+
+export interface ApiErrorBody {
+  error: string;
+  details?: string[];
+}
+
+/** 在庫CSVの取り込み結果（確認時・実行時とも同じ形） */
+export interface ImportResult {
+  /** true = 確認のみ（DB は変更していない） */
+  dryRun: boolean;
+  /** 取り込みに使った列（CSV の見出し → 項目名） */
+  columns: { header: string; field: string }[];
+  /** 使わなかった列の見出し */
+  ignoredColumns: string[];
+  created: number;
+  updated: number;
+  /** 在庫数を合わせた件数（更新・新規に含まれる） */
+  stockAdjusted: number;
+  unchanged: number;
+  errors: { line: number; code: string; messages: string[] }[];
+  rows: { line: number; code: string; action: "create" | "update" | "unchanged"; changes: string[] }[];
+}
+
+/** 履歴 CSV の自動書き出しの状態 */
+export interface LogExportStatus {
+  /** 書き出し先フォルダ（サーバーの PC 上のパス） */
+  dir: string;
+  lastRunAt: string | null;
+  written: number;
+  failures: { file: string; reason: string }[];
+}
+
+// ================================================================ メール通知
+
+/** none: 暗号化なし（社内リレー・25番） / starttls: 587番など / ssl: 465番 */
+export type SmtpSecurity = "none" | "starttls" | "ssl";
+export const SmtpSecurityLabels: Record<SmtpSecurity, string> = {
+  none: "なし",
+  starttls: "STARTTLS",
+  ssl: "SSL/TLS",
+};
+
+/** メール通知の設定（画面に返す形。パスワードは返さず、設定済みかどうかだけ返す） */
+export interface MailSettings {
+  /** 毎日の在庫警告メールを送るか */
+  enabled: boolean;
+  host: string;
+  port: number;
+  security: SmtpSecurity;
+  /** 自己署名証明書の社内サーバーを許可する（暗号化ありの場合のみ意味がある） */
+  allowSelfSignedCert: boolean;
+  /** 認証ユーザー（空 = 認証なし） */
+  authUser: string;
+  hasPassword: boolean;
+  from: string;
+  to: string[];
+  /** 毎日の送信時刻 "HH:MM"（このPCの時計） */
+  sendTime: string;
+  /** メール内のリンクに使う画面のアドレス（空 = このPCの社内 IP から自動） */
+  siteUrl: string;
+}
+
+/** 保存・テスト送信で送る形 */
+export interface MailSettingsRequest extends Omit<MailSettings, "hasPassword" | "to"> {
+  /** 配列、または改行・カンマ区切りの文字列 */
+  to: string[] | string;
+  /** 空・省略 = 保存済みのパスワードを使う */
+  password?: string;
+  /** true = 保存済みのパスワードを消す */
+  clearPassword?: boolean;
+  userName: string;
+}
+
+export interface MailStatus {
+  /** 最後に送信を試みた日時と結果（テスト送信・手動送信・毎日の送信のいずれか） */
+  lastAttemptAt: string | null;
+  lastKind: "test" | "manual" | "daily" | null;
+  lastOk: boolean | null;
+  lastMessage: string;
+  /** 毎日の送信を済ませた日（YYYY-MM-DD） */
+  dailyDoneDate: string | null;
+}
+
+export interface MailSettingsResponse {
+  settings: MailSettings;
+  status: MailStatus;
+  /** siteUrl が空のときに使われるアドレス */
+  defaultSiteUrl: string;
+}
+
+export interface MailSendResult {
+  sent: boolean;
+  message: string;
+}
