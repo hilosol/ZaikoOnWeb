@@ -27,6 +27,7 @@ const PAGE_SIZE = 100;
 const KINDS = Object.keys(HistoryKindLabels) as HistoryKind[];
 /** 年度の選択肢：今年度から何年分さかのぼるか */
 const FISCAL_YEARS_BACK = 5;
+const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 
 /** 区分の選択肢（入出庫のみ）。値はカンマ区切りの区分 */
 const TYPE_OPTIONS: { label: string; value: string }[] = [
@@ -45,7 +46,9 @@ const ALL_USERS = "__all__";
 export function HistoryPage({ productId }: { productId: number | null }) {
   const app = useApp();
   const today = useMemo(() => new Date(), []);
-  const startMonth = fiscalYearStartMonth(useGeneralSettings().settings.fiscalYearEndMonth);
+  const general = useGeneralSettings();
+  const endMonth = general.settings.fiscalYearEndMonth;
+  const startMonth = fiscalYearStartMonth(endMonth);
   const fiscalYears = useMemo(() => {
     const now = fiscalYearOf(today, startMonth);
     return Array.from({ length: FISCAL_YEARS_BACK }, (_, i) => now - i);
@@ -125,6 +128,12 @@ export function HistoryPage({ productId }: { productId: number | null }) {
   const changePeriod = resetPage(setPeriod);
 
   const { preset, fiscalYear } = matchPreset(period, today, fiscalYears, startMonth);
+
+  /** 決算月を変える（共有PCに保存して次回も使う）。年度を選んでいたら、同じ年度の期間を新しい決算月で選び直す */
+  const changeEndMonth = (month: number) => {
+    if (fiscalYear !== null) changePeriod(fiscalYearPeriod(fiscalYear, fiscalYearStartMonth(month)));
+    general.save({ fiscalYearEndMonth: month }, app.userName).catch((e) => app.toast(errorMessage(e), "error"));
+  };
   const total = result?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const csvQuery = { ...query };
@@ -193,6 +202,19 @@ export function HistoryPage({ productId }: { productId: number | null }) {
               {fiscalYears.map((y) => (
                 <option key={y} value={y}>
                   {fiscalYearLabel(y, startMonth)}
+                </option>
+              ))}
+            </select>
+            <select
+              className="plain-select small"
+              value={endMonth}
+              onChange={(e) => changeEndMonth(Number(e.target.value))}
+              aria-label="決算月"
+              title="年度の区切り（決算月）。選んだ月は共有PCに保存され、全端末で共通です"
+            >
+              {MONTHS.map((m) => (
+                <option key={m} value={m}>
+                  {m}月決算
                 </option>
               ))}
             </select>

@@ -40,8 +40,15 @@ describe("全体の設定（決算月）", () => {
     expect(general.get()).toEqual({ fiscalYearEndMonth: 3 });
   });
 
-  it("入力者が無いと保存できない", () => {
-    expect(() => general.save({ fiscalYearEndMonth: 12 }, { ...f.actor, userName: "" })).toThrow();
+  it("入力者を選んでいなくても保存でき、操作ログに端末IPを残す", () => {
+    general.save({ fiscalYearEndMonth: 12 }, { ...f.actor, userName: "" });
+    expect(general.get()).toEqual({ fiscalYearEndMonth: 12 });
+    const log = f.db.prepare("SELECT user_name, client_ip, detail FROM audit_logs WHERE action = 'SETTINGS_CHANGE'").get() as Record<string, string>;
+    expect(log).toEqual({ user_name: "(未選択)", client_ip: f.actor.clientIp, detail: "決算月: 3月 → 12月" });
+  });
+
+  it("登録されていない名前では保存できない", () => {
+    expect(() => general.save({ fiscalYearEndMonth: 12 }, { ...f.actor, userName: "未登録の人" })).toThrow();
     expect(general.get()).toEqual({ fiscalYearEndMonth: 3 });
   });
 

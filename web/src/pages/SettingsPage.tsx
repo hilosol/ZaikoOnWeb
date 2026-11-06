@@ -5,7 +5,6 @@ import { api, ApiError, errorMessage } from "../api";
 import { shortDateTime } from "../components/common";
 import { useApp } from "../context";
 import { DevicesSection } from "./DevicesSection";
-import { FiscalYearSection } from "./FiscalYearSection";
 import { LogExportSection } from "./LogExportSection";
 import { MailSettingsSection } from "./MailSettingsSection";
 import { OrderListSection } from "./OrderListSection";
@@ -17,7 +16,6 @@ export function SettingsPage() {
       <DevicesSection />
       <StockCsvSection />
       <OrderListSection />
-      <FiscalYearSection />
       <LogExportSection />
       <MailSettingsSection />
       <AccessSection />

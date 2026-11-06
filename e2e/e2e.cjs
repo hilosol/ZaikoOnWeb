@@ -888,6 +888,20 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     const fy = await page.getByLabel("年度").locator("option").nth(1).getAttribute("value");
     await page.getByLabel("年度").selectOption(fy);
     check("履歴ページ：年度を選ぶと4月1日〜翌3月31日", (await page.getByLabel("開始日").inputValue()) === `${fy}-04-01` && (await page.getByLabel("終了日").inputValue()) === `${Number(fy) + 1}-03-31`);
+    check("履歴ページ：決算月の既定は3月", (await page.getByLabel("決算月").inputValue()) === "3");
+    await page.getByLabel("決算月").selectOption("12");
+    check("履歴ページ：年度を選んだまま決算月を変えると、同じ年度を新しい区切りで選び直す",
+      (await page.getByLabel("開始日").inputValue()) === `${fy}-01-01` && (await page.getByLabel("終了日").inputValue()) === `${fy}-12-31`,
+      await page.getByLabel("開始日").inputValue());
+    check("履歴ページ：年度の選択肢に期間を表示", (await page.getByLabel("年度").locator("option").nth(1).textContent()).includes("/1〜"));
+    await page.waitForFunction(async () => (await (await fetch("/api/settings/general")).json()).fiscalYearEndMonth === 12);
+    await page.reload();
+    await page.getByTestId("history-table").waitFor();
+    await page.waitForFunction(() => document.querySelector("select[aria-label=決算月]")?.value === "12");
+    check("履歴ページ：選んだ決算月を記憶する（開き直しても12月）", true);
+    check("設定：設定画面に年度の項目は無い（履歴ページで選ぶ）", (await page.getByRole("region", { name: "年度" }).count()) === 0);
+    await page.getByLabel("決算月").selectOption("3");
+    await page.waitForFunction(async () => (await (await fetch("/api/settings/general")).json()).fiscalYearEndMonth === 3);
     await page.getByLabel("開始日").fill("2030-01-01");
     await page.locator(".history-page .error-box", { hasText: "開始日が終了日より後" }).waitFor();
     check("履歴ページ：期間の入力ミスを表示", true);
@@ -928,26 +942,6 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     await page.getByTestId("order-list-status").waitFor();
     check("設定：受注番号リストの件数を表示", (await page.getByTestId("order-list-status").textContent()).startsWith("3件"));
 
-    // 年度（決算月）
-    const fySection = page.getByRole("region", { name: "年度" });
-    check("設定：決算月の既定は3月", (await fySection.getByLabel("決算月").inputValue()) === "3");
-    await fySection.getByLabel("決算月").selectOption("12");
-    const thisYear = new Date().getFullYear();
-    check("設定：決算月を選ぶと今年度の期間を表示", (await page.getByTestId("fiscal-example").textContent()).includes(`${thisYear}年度（${thisYear}/1〜${thisYear}/12）`), await page.getByTestId("fiscal-example").textContent());
-    await fySection.getByRole("button", { name: "保存" }).click();
-    await page.locator(".toast", { hasText: "決算月を 12月 にしました" }).last().waitFor();
-    await page.getByRole("button", { name: "履歴", exact: true }).click();
-    await page.getByTestId("history-table").waitFor();
-    const fy12 = await page.getByLabel("年度").locator("option").nth(1).getAttribute("value");
-    await page.getByLabel("年度").selectOption(fy12);
-    check("履歴ページ：12月決算なら年度は1月1日〜12月31日",
-      fy12 === String(thisYear) && (await page.getByLabel("開始日").inputValue()) === `${fy12}-01-01` && (await page.getByLabel("終了日").inputValue()) === `${fy12}-12-31`,
-      `${fy12} ${await page.getByLabel("開始日").inputValue()}`);
-    await page.getByRole("button", { name: "設定" }).click();
-    await page.getByRole("region", { name: "年度" }).getByLabel("決算月").selectOption("3");
-    await page.getByRole("region", { name: "年度" }).getByRole("button", { name: "保存" }).click();
-    await page.locator(".toast", { hasText: "決算月を 3月 にしました" }).last().waitFor();
-    check("設定：決算月を戻せる", true);
 
     // 履歴CSVの自動保存
     await page.getByRole("button", { name: "設定" }).click();

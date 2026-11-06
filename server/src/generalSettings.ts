@@ -5,9 +5,10 @@ import type { SettingsStore } from "./settingsStore.js";
 
 const KEY = "general";
 
-/** 設定の保存に必要な入力者の確認・監査ログ（InventoryService の一部だけに依存させる） */
+/** 設定の保存で使う入力者の解決・監査ログ（InventoryService の一部だけに依存させる） */
 export interface SettingsAuditor {
-  requireUser(actor: Actor): string;
+  /** 選んだ名前 → 端末に紐づいた人 → 無ければ ""（入力者なしでも保存でき、端末IP は記録される） */
+  resolveStockUser(actor: Actor): string;
   recordSettingsChange(target: string, detail: string, actor: Actor): void;
 }
 
@@ -29,9 +30,12 @@ export class GeneralSettingsService {
     };
   }
 
-  /** 省略した項目は変えない。変わった項目だけ監査ログに残す */
+  /**
+   * 省略した項目は変えない。変わった項目だけ監査ログに残す。
+   * 決算月は履歴ページで選ぶたびに保存する表示用の設定なので、入力者を選んでいなくても保存できる。
+   */
   save(raw: Record<string, unknown>, actor: Actor): GeneralSettings {
-    const userName = this.auditor.requireUser(actor);
+    const userName = this.auditor.resolveStockUser(actor);
     const before = this.get();
     const after: GeneralSettings = { ...before };
     if (raw.fiscalYearEndMonth !== undefined) {
