@@ -511,9 +511,16 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     // バックアップ
     const bk = page.getByRole("region", { name: "バックアップ" });
     await bk.getByTestId("backup-place-サーバーPC内").waitFor();
-    check("バックアップ：既定は30日分・サーバーPC内に保存済み",
-      (await bk.getByLabel("残す期間").inputValue()) === "30d" && (await bk.getByTestId("backup-place-サーバーPC内").textContent()).includes("成功"));
-    await bk.getByLabel("残す期間").selectOption("unlimited");
+    check("バックアップ：既定は毎日の分30日・月1回の分はオフ・サーバーPC内に保存済み",
+      (await bk.getByLabel("毎日の分を残す期間").inputValue()) === "30d" &&
+        (await bk.getByLabel("月1回の分を残す日").isDisabled()) &&
+        (await bk.getByTestId("backup-place-サーバーPC内").textContent()).includes("成功"));
+    await bk.getByLabel("月1回の分も残す").check();
+    const dayOptions = await bk.getByLabel("月1回の分を残す日").locator("option").allTextContents();
+    check("バックアップ：月1回の分の日は 1〜28日と月末", dayOptions.length === 29 && dayOptions[0] === "1日" && dayOptions[27] === "28日" && dayOptions[28] === "月末");
+    await bk.getByLabel("月1回の分を残す日").selectOption({ label: "月末" });
+    check("バックアップ：無制限でなければ注意書きは出ない", (await bk.getByTestId("unlimited-note").count()) === 0);
+    await bk.getByLabel("月1回の分を残す期間").selectOption("unlimited");
     check("バックアップ：無制限を選ぶと注意書き", await bk.getByTestId("unlimited-note").isVisible());
     await bk.getByLabel("追加の保存先").fill("\\\\nas\\share");
     await bk.getByRole("button", { name: "書き込みテスト" }).click();
@@ -529,6 +536,8 @@ async function registerProduct(page, { code, name, category, initial, warning, i
         fs.readdirSync(path.join(EXTRA_BACKUP, "db")).length === 1 && fs.readdirSync(path.join(EXTRA_BACKUP, "images")).length >= 1,
       fs.readdirSync(path.join(EXTRA_BACKUP, "images")).length + "枚");
     await bk.screenshot({ path: `${SHOTS}/06c_backup.png` });
+    const savedBackup = await page.evaluate(async () => (await (await fetch("/api/backup")).json()).settings);
+    check("バックアップ：月1回の分の設定を保存", savedBackup.monthlyEnabled === true && savedBackup.monthlyDay === 0 && savedBackup.monthly === "unlimited", JSON.stringify(savedBackup));
     check("バックアップ：失敗していなければ警告は出ない", (await page.locator(".backup-warning").count()) === 0);
 
     // プログラムの更新（E2E はサーバーと同じPCから開くので「サーバーPCの画面」）

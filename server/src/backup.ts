@@ -1,12 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  DailyRetentionLabels,
   DefaultBackupSettings,
+  MONTH_END,
+  MonthlyRetentionLabels,
+  monthlyDayLabel,
   type BackupPlaceStatus,
-  type BackupRetention,
   type BackupSettings,
   type BackupView,
-  BackupRetentionLabels,
+  type DailyRetention,
+  type MonthlyRetention,
 } from "../../shared/types.js";
 import type { Clock } from "./clock.js";
 import { ValidationError } from "./errors.js";
@@ -21,6 +25,7 @@ import type { SettingsStore } from "./settingsStore.js";
  *     db\     … サーバーPC内のバックアップのうち、まだ無いものをコピー（抜いていた日の分も挿し直せば追いつく）
  *     images\ … 商品写真。増えた・変わったファイルだけコピー（削除した商品の写真も消さずに残す）
  * - 古いバックアップは「残す期間」の設定に従って削除（保存先ごとに同じ規則）
+ *     毎日の分：直近 N 日分。月1回の分（任意）：毎月の指定日（1〜28日・月末）の分を M か月分
  *
  * ネットワークの場所（\\NAS\...）は、サーバーが SYSTEM で動くため認証できず書き込めないので受け付けない。
  */
@@ -29,7 +34,11 @@ const SETTINGS_KEY = "backup";
 const STATUS_KEY = "backupStatus";
 const FILE_PATTERN = /^zaiko_(\d{8})\.db$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const RETENTIONS = Object.keys(BackupRetentionLabels) as BackupRetention[];
+const DAILY = Object.keys(DailyRetentionLabels) as DailyRetention[];
+const MONTHLY = Object.keys(MonthlyRetentionLabels) as MonthlyRetention[];
+
+/** 残す期間の規則（設定のうち削除に関わる部分） */
+export type RetentionPolicy = Pick<BackupSettings, "daily" | "monthlyEnabled" | "monthlyDay" | "monthly">;
 const MAX_DIR_LENGTH = 200;
 const MTIME_TOLERANCE_MS = 2000;
 
@@ -39,38 +48,37 @@ const parseYmd = (s: string) => new Date(Number(s.slice(0, 4)), Number(s.slice(4
 const daysBetween = (from: Date, to: Date) =>
   Math.round((Date.UTC(to.getFullYear(), to.getMonth(), to.getDate()) - Date.UTC(from.getFullYear(), from.getMonth(), from.getDate())) / DAY_MS);
 
+/** その月の「月1回の分を残す日」（月末なら月の最終日） */
+function monthlyTarget(year: number, month0: number, day: number): Date {
+  return day === MONTH_END ? new Date(year, month0 + 1, 0) : new Date(year, month0, day);
+}
+
 /**
  * 残す期間の規則で、削除するバックアップ（YYYYMMDD）を選ぶ。今日の分は必ず残す。
- * 世代管理：直近30日は毎日分、それより前で1年以内は各月の最初の分、さらに前は各年の最初の分を残す。
+ * - 毎日の分：今日を含めて N 日分（無制限なら全部）
+ * - 月1回の分：各月の指定日の分。その日の分が無ければ（サーバーPCが止まっていた等）、それ以降で最初の分。
+ *   今月を含めて M か月分（無制限なら全部）
  */
-export function selectBackupsToDelete(dates: string[], today: Date, retention: BackupRetention): string[] {
-  const days: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90, "1y": 365 };
-  if (retention === "unlimited") return [];
-  if (retention !== "generations") {
-    const keep = days[retention] ?? 30;
-    return dates.filter((d) => daysBetween(parseYmd(d), today) >= keep);
-  }
-  const sorted = [...dates].sort();
-  const firstOf = (key: (d: string) => string) => {
-    const seen = new Set<string>();
-    const result = new Set<string>();
-    for (const d of sorted) {
-      const k = key(d);
-      if (!seen.has(k)) {
-        seen.add(k);
-        result.add(d);
-      }
+export function selectBackupsToDelete(dates: string[], today: Date, policy: RetentionPolicy): string[] {
+  const dailyDays: Record<DailyRetention, number> = { "7d": 7, "30d": 30, "90d": 90, "1y": 365, unlimited: Infinity };
+  const months: Record<MonthlyRetention, number> = { "12m": 12, "24m": 24, "36m": 36, unlimited: Infinity };
+  const keep = new Set(dates.filter((d) => daysBetween(parseYmd(d), today) < (dailyDays[policy.daily] ?? 30)));
+
+  if (policy.monthlyEnabled) {
+    const sorted = [...dates].sort();
+    const limit = months[policy.monthly] ?? 12;
+    for (let back = 0; back < Math.min(limit, 1200); back++) {
+      const t = monthlyTarget(today.getFullYear(), today.getMonth() - back, policy.monthlyDay);
+      if (t > today) continue; // 今月の指定日がまだ来ていない
+      const target = ymd(t);
+      // 次の月の指定日より前に限る（ずっと前の月の代わりに、最近の分を選ばないように）
+      const next = ymd(monthlyTarget(today.getFullYear(), today.getMonth() - back + 1, policy.monthlyDay));
+      const rep = sorted.find((d) => d >= target && d < next);
+      if (rep) keep.add(rep);
+      if (sorted.length > 0 && target < sorted[0]! && back > 0) break; // それより前のバックアップは無い
     }
-    return result;
-  };
-  const firstOfMonth = firstOf((d) => d.slice(0, 6));
-  const firstOfYear = firstOf((d) => d.slice(0, 4));
-  return sorted.filter((d) => {
-    const age = daysBetween(parseYmd(d), today);
-    if (age < 30) return false;
-    if (age < 365 && firstOfMonth.has(d)) return false;
-    return !firstOfYear.has(d);
-  });
+  }
+  return dates.filter((d) => !keep.has(d));
 }
 
 /**
@@ -156,10 +164,20 @@ export class BackupService {
   settings(): BackupSettings {
     const raw = this.o.store.get(SETTINGS_KEY);
     const obj = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-    return {
-      retention: RETENTIONS.includes(obj.retention as BackupRetention) ? (obj.retention as BackupRetention) : DefaultBackupSettings.retention,
+    const d = DefaultBackupSettings;
+    const result: BackupSettings = {
+      daily: DAILY.includes(obj.daily as DailyRetention) ? (obj.daily as DailyRetention) : d.daily,
+      monthlyEnabled: typeof obj.monthlyEnabled === "boolean" ? obj.monthlyEnabled : d.monthlyEnabled,
+      monthlyDay: isMonthlyDay(obj.monthlyDay) ? obj.monthlyDay : d.monthlyDay,
+      monthly: MONTHLY.includes(obj.monthly as MonthlyRetention) ? (obj.monthly as MonthlyRetention) : d.monthly,
       extraDir: typeof obj.extraDir === "string" ? obj.extraDir : "",
     };
+    // 以前の形式（retention 1つ）で保存されていた場合
+    if (obj.daily === undefined && typeof obj.retention === "string") {
+      if (obj.retention === "generations") Object.assign(result, { daily: "30d", monthlyEnabled: true, monthlyDay: 1, monthly: "unlimited" });
+      else if (DAILY.includes(obj.retention as DailyRetention)) result.daily = obj.retention as DailyRetention;
+    }
+    return result;
   }
 
   private storedStatus(): StoredStatus {
@@ -216,16 +234,30 @@ export class BackupService {
     const userName = this.o.auditor.resolveStockUser(actor);
     const before = this.settings();
     const after: BackupSettings = { ...before };
-    if (raw.retention !== undefined) {
-      if (!RETENTIONS.includes(raw.retention as BackupRetention)) throw new ValidationError("残す期間を選んでください。");
-      after.retention = raw.retention as BackupRetention;
+    const errors: string[] = [];
+    if (raw.daily !== undefined) {
+      if (DAILY.includes(raw.daily as DailyRetention)) after.daily = raw.daily as DailyRetention;
+      else errors.push("毎日の分を残す期間を選んでください。");
     }
+    if (raw.monthlyEnabled !== undefined) {
+      if (typeof raw.monthlyEnabled === "boolean") after.monthlyEnabled = raw.monthlyEnabled;
+      else errors.push("月1回の分を残すかどうかの指定が正しくありません。");
+    }
+    if (raw.monthlyDay !== undefined) {
+      if (isMonthlyDay(raw.monthlyDay)) after.monthlyDay = raw.monthlyDay;
+      else errors.push("月1回の分を残す日は 1〜28日 または 月末 を選んでください。");
+    }
+    if (raw.monthly !== undefined) {
+      if (MONTHLY.includes(raw.monthly as MonthlyRetention)) after.monthly = raw.monthly as MonthlyRetention;
+      else errors.push("月1回の分を残す期間を選んでください。");
+    }
+    if (errors.length > 0) throw new ValidationError(errors);
     if (raw.extraDir !== undefined) after.extraDir = normalizeBackupDir(raw.extraDir, this.o.dataDir, this.o.isAbsolute);
 
     const changes: string[] = [];
-    if (after.retention !== before.retention) {
-      changes.push(`残す期間: ${BackupRetentionLabels[before.retention]} → ${BackupRetentionLabels[after.retention]}`);
-    }
+    if (after.daily !== before.daily) changes.push(`毎日の分: ${DailyRetentionLabels[before.daily]} → ${DailyRetentionLabels[after.daily]}`);
+    const monthlyText = (x: BackupSettings) => (x.monthlyEnabled ? `${monthlyDayLabel(x.monthlyDay)}の分を${MonthlyRetentionLabels[x.monthly]}` : "残さない");
+    if (monthlyText(after) !== monthlyText(before)) changes.push(`月1回の分: ${monthlyText(before)} → ${monthlyText(after)}`);
     if (after.extraDir !== before.extraDir) changes.push(`追加の保存先: ${before.extraDir || "なし"} → ${after.extraDir || "なし"}`);
     if (changes.length > 0) {
       this.o.store.set(SETTINGS_KEY, after);
@@ -274,7 +306,7 @@ export class BackupService {
         this.o.backupDatabase(temp);
         fs.renameSync(temp, dest); // 途中で止まったファイルを正式なバックアップと見なさない
       }
-      this.prune(this.localDir, now, settings.retention);
+      this.prune(this.localDir, now, settings);
       this.saveStatus({ local: { lastAttemptAt: at, lastOk: true, lastMessage: "保存しました", lastSuccessAt: at } });
     } catch (error) {
       this.saveStatus({ local: { ...stored.local, lastAttemptAt: at, lastOk: false, lastMessage: describeFsError(error) } });
@@ -284,7 +316,7 @@ export class BackupService {
     if (settings.extraDir) {
       const prev = stored.extra?.dir === settings.extraDir ? stored.extra : {};
       try {
-        const copied = this.copyToExtra(settings.extraDir, now, settings.retention);
+        const copied = this.copyToExtra(settings.extraDir, now, settings);
         this.saveStatus({
           extra: {
             dir: settings.extraDir,
@@ -301,7 +333,7 @@ export class BackupService {
     return this.view();
   }
 
-  private copyToExtra(extraDir: string, now: Date, retention: BackupRetention): { db: number; images: number } {
+  private copyToExtra(extraDir: string, now: Date, policy: RetentionPolicy): { db: number; images: number } {
     if (!fs.existsSync(extraDir)) {
       // ドライブ自体が無い（抜いている）なら作らずに失敗とする。ドライブがあればフォルダを作る
       const root = path.parse(path.resolve(extraDir)).root;
@@ -315,13 +347,13 @@ export class BackupService {
     let db = 0;
     const existing = new Set(this.listBackups(dbDir));
     const kept = new Set(this.listBackups(dbDir).concat(this.listBackups(this.localDir)));
-    const toDelete = new Set(selectBackupsToDelete([...kept].map((f) => FILE_PATTERN.exec(f)![1]!), now, retention));
+    const toDelete = new Set(selectBackupsToDelete([...kept].map((f) => FILE_PATTERN.exec(f)![1]!), now, policy));
     for (const file of fs.existsSync(this.localDir) ? this.listBackups(this.localDir) : []) {
       if (existing.has(file) || toDelete.has(FILE_PATTERN.exec(file)![1]!)) continue;
       copyAtomically(path.join(this.localDir, file), path.join(dbDir, file));
       db++;
     }
-    this.prune(dbDir, now, retention);
+    this.prune(dbDir, now, policy);
 
     let images = 0;
     for (const file of fs.existsSync(this.imagesDir) ? fs.readdirSync(this.imagesDir) : []) {
@@ -338,13 +370,17 @@ export class BackupService {
     return { db, images };
   }
 
-  private prune(dir: string, now: Date, retention: BackupRetention): void {
+  private prune(dir: string, now: Date, policy: RetentionPolicy): void {
     const files = this.listBackups(dir);
-    const remove = new Set(selectBackupsToDelete(files.map((f) => FILE_PATTERN.exec(f)![1]!), now, retention));
+    const remove = new Set(selectBackupsToDelete(files.map((f) => FILE_PATTERN.exec(f)![1]!), now, policy));
     for (const f of files) {
       if (remove.has(FILE_PATTERN.exec(f)![1]!)) fs.rmSync(path.join(dir, f), { force: true });
     }
   }
+}
+
+function isMonthlyDay(v: unknown): v is number {
+  return typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 28;
 }
 
 /** 一時ファイルに書いてから名前を変える（コピー途中のファイルが正式名で残らないように）。更新日時も元に合わせる */

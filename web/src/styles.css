@@ -2872,6 +2872,30 @@ button.product-image.zoomable:focus-visible {
   margin: 8px 0 12px;
 }
 
+.backup-monthly {
+  margin: 12px 0;
+  padding: 8px 14px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.backup-monthly legend label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.backup-monthly-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  font-size: 14px;
+  margin: 4px 0 6px;
+}
+
 .backup-places {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));

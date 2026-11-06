@@ -436,25 +436,45 @@ export interface HistorySearchResult<T> {
   summary?: { IN: number; OUT: number; TRANSFER: number };
 }
 
-/** バックアップを残す期間 */
-export type BackupRetention = "7d" | "30d" | "90d" | "1y" | "generations" | "unlimited";
+/** 毎日のバックアップを残す期間 */
+export type DailyRetention = "7d" | "30d" | "90d" | "1y" | "unlimited";
 
-export const BackupRetentionLabels: Record<BackupRetention, string> = {
+export const DailyRetentionLabels: Record<DailyRetention, string> = {
   "7d": "7日分",
   "30d": "30日分",
   "90d": "90日分",
   "1y": "1年分",
-  generations: "世代管理（直近30日は毎日・12か月は月1回・それより前は年1回）",
   unlimited: "無制限（消さない）",
 };
 
+/** 月1回のバックアップを残す期間 */
+export type MonthlyRetention = "12m" | "24m" | "36m" | "unlimited";
+
+export const MonthlyRetentionLabels: Record<MonthlyRetention, string> = {
+  "12m": "12か月",
+  "24m": "24か月",
+  "36m": "36か月",
+  unlimited: "無制限（消さない）",
+};
+
+/** 月1回の分を残す日（1〜28。0 = 月末） */
+export const MONTH_END = 0;
+export const monthlyDayLabel = (day: number) => (day === MONTH_END ? "月末" : `${day}日`);
+
 export interface BackupSettings {
-  retention: BackupRetention;
+  /** 毎日の分を残す期間 */
+  daily: DailyRetention;
+  /** 月1回の分も残すか */
+  monthlyEnabled: boolean;
+  /** 月1回の分を残す日（1〜28、0 = 月末）。その日の分が無ければ、それ以降で最初の分 */
+  monthlyDay: number;
+  /** 月1回の分を残す期間 */
+  monthly: MonthlyRetention;
   /** 追加の保存先（外付けドライブ・USB 等のフォルダ。"" = サーバーPC内のみ） */
   extraDir: string;
 }
 
-export const DefaultBackupSettings: BackupSettings = { retention: "30d", extraDir: "" };
+export const DefaultBackupSettings: BackupSettings = { daily: "30d", monthlyEnabled: false, monthlyDay: MONTH_END, monthly: "12m", extraDir: "" };
 
 /** 保存先ごとの状態 */
 export interface BackupPlaceStatus {

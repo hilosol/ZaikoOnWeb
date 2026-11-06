@@ -1,16 +1,28 @@
 import { useEffect, useState } from "react";
 import {
   BACKUP_LOW_FREE_BYTES,
-  BackupRetentionLabels,
+  DailyRetentionLabels,
+  DefaultBackupSettings,
+  MONTH_END,
+  MonthlyRetentionLabels,
+  monthlyDayLabel,
   type BackupPlaceStatus,
-  type BackupRetention,
+  type BackupSettings,
   type BackupView,
+  type DailyRetention,
+  type MonthlyRetention,
 } from "../../../shared/types";
 import { api, errorMessage } from "../api";
 import { shortDateTime } from "../components/common";
 import { useApp } from "../context";
 
-const RETENTIONS = Object.keys(BackupRetentionLabels) as BackupRetention[];
+const DAILY = Object.keys(DailyRetentionLabels) as DailyRetention[];
+const MONTHLY = Object.keys(MonthlyRetentionLabels) as MonthlyRetention[];
+/** 1〜28日、月末 */
+const MONTHLY_DAYS = [
+  ...Array.from({ length: 28 }, (_, i) => i + 1),
+  MONTH_END,
+];
 
 /** 1,234,567 → "1.2 MB" */
 export function formatBytes(n: number | null): string {
@@ -29,16 +41,23 @@ export function formatBytes(n: number | null): string {
 export function BackupSection() {
   const app = useApp();
   const [view, setView] = useState<BackupView | null>(null);
-  const [retention, setRetention] = useState<BackupRetention>("30d");
-  const [extraDir, setExtraDir] = useState("");
+  /** 画面で編集中の設定（保存するまでサーバーには反映しない） */
+  const [draft, setDraft] = useState<BackupSettings>(DefaultBackupSettings);
+  const set = <K extends keyof BackupSettings>(
+    key: K,
+    value: BackupSettings[K],
+  ) => setDraft((d) => ({ ...d, [key]: value }));
+  const extraDir = draft.extraDir;
+  const setExtraDir = (v: string) => set("extraDir", v);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [test, setTest] = useState<{ ok: boolean; message: string } | null>(null);
+  const [test, setTest] = useState<{ ok: boolean; message: string } | null>(
+    null,
+  );
 
   const apply = (v: BackupView) => {
     setView(v);
-    setRetention(v.settings.retention);
-    setExtraDir(v.settings.extraDir);
+    setDraft(v.settings);
   };
 
   useEffect(() => {
@@ -60,37 +79,112 @@ export function BackupSection() {
   const save = () =>
     act(async () => {
       const userName = app.userName;
-      const v = await api.saveBackupSettings({ retention, extraDir }, userName);
+      const v = await api.saveBackupSettings(draft, userName);
       apply(v);
       setTest(null);
-      app.toast(v.extra && v.extra.lastOk === false ? "保存しましたが、追加の保存先に書き込めませんでした" : "バックアップの設定を保存しました", v.extra?.lastOk === false ? "error" : undefined);
+      app.toast(
+        v.extra && v.extra.lastOk === false
+          ? "保存しましたが、追加の保存先に書き込めませんでした"
+          : "バックアップの設定を保存しました",
+        v.extra?.lastOk === false ? "error" : undefined,
+      );
     });
 
-  const changed = view !== null && (retention !== view.settings.retention || extraDir.trim() !== view.settings.extraDir);
+  const changed =
+    view !== null &&
+    (Object.keys(draft) as (keyof BackupSettings)[]).some((k) =>
+      k === "extraDir"
+        ? draft.extraDir.trim() !== view.settings.extraDir
+        : draft[k] !== view.settings[k],
+    );
+  const unlimited =
+    draft.daily === "unlimited" ||
+    (draft.monthlyEnabled && draft.monthly === "unlimited");
 
   return (
     <section className="card" aria-label="バックアップ">
       <h2>バックアップ（自動）</h2>
       <p className="muted small">
-        1日1回、在庫・履歴のデータベースをサーバーPC内に保存します。追加の保存先（外付けドライブ・USB メモリ）を指定すると、そこにもデータベースと商品写真をコピーします（写真は増えた・変わった分だけ）。
+        1日1回、在庫・履歴のデータベースをサーバーPC内に保存します。追加の保存先（外付けドライブ・USB
+        メモリ）を指定すると、そこにもデータベースと商品写真をコピーします（写真は増えた・変わった分だけ）。
       </p>
       {error && <div className="error-box">{error}</div>}
       {view && (
         <>
           <div className="backup-form">
             <label className="field">
-              <span>残す期間</span>
-              <select className="plain-select" value={retention} onChange={(e) => setRetention(e.target.value as BackupRetention)} disabled={busy} aria-label="残す期間">
-                {RETENTIONS.map((r) => (
+              <span>毎日の分を残す期間</span>
+              <select
+                className="plain-select"
+                value={draft.daily}
+                onChange={(e) => set("daily", e.target.value as DailyRetention)}
+                disabled={busy}
+                aria-label="毎日の分を残す期間"
+              >
+                {DAILY.map((r) => (
                   <option key={r} value={r}>
-                    {BackupRetentionLabels[r]}
+                    {DailyRetentionLabels[r]}
                   </option>
                 ))}
               </select>
             </label>
-            {retention === "unlimited" && (
+            <fieldset className="backup-monthly">
+              <legend>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={draft.monthlyEnabled}
+                    onChange={(e) => set("monthlyEnabled", e.target.checked)}
+                    disabled={busy}
+                  />
+                  月1回の分も残す
+                </label>
+              </legend>
+              <div className="backup-monthly-row">
+                <label>
+                  残す日{" "}
+                  <select
+                    className="plain-select"
+                    value={draft.monthlyDay}
+                    onChange={(e) => set("monthlyDay", Number(e.target.value))}
+                    disabled={busy || !draft.monthlyEnabled}
+                    aria-label="月1回の分を残す日"
+                  >
+                    {MONTHLY_DAYS.map((d) => (
+                      <option key={d} value={d}>
+                        {monthlyDayLabel(d)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  残す期間{" "}
+                  <select
+                    className="plain-select"
+                    value={draft.monthly}
+                    onChange={(e) =>
+                      set("monthly", e.target.value as MonthlyRetention)
+                    }
+                    disabled={busy || !draft.monthlyEnabled}
+                    aria-label="月1回の分を残す期間"
+                  >
+                    {MONTHLY.map((r) => (
+                      <option key={r} value={r}>
+                        {MonthlyRetentionLabels[r]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <p className="muted small">
+                例：毎日の分 30日分 ＋ 月末の分を無制限 →
+                直近1か月は毎日、それより前は各月末の状態に戻せます。その日の分が無い月（サーバーPCが止まっていた等）は、それ以降で最初の分を残します。
+              </p>
+            </fieldset>
+            {unlimited && (
               <p className="warning-note" data-testid="unlimited-note">
-                古いバックアップを消さないため、保存先の空き容量が少しずつ減ります。下の「合計」と「空き」を時々確認してください（空きが 1GB を切ると警告します）。
+                「無制限」は古いバックアップを消さないため、保存先の空き容量が少しずつ減ります。下の「合計」と「空き」を時々確認してください（空きが
+                1GB を切ると画面の上に警告が出ます）。
               </p>
             )}
             <label className="field">
@@ -109,23 +203,38 @@ export function BackupSection() {
               />
             </label>
             <p className="muted small">
-              外付けドライブ・USB メモリのフォルダを指定します（ネットワークの場所・NAS は指定できません）。ドライブ文字が変わらないよう、Windows の「ディスクの管理」で固定しておくと確実です。
+              外付けドライブ・USB
+              メモリのフォルダを指定します（ネットワークの場所・NAS
+              は指定できません）。ドライブ文字が変わらないよう、Windows
+              の「ディスクの管理」で固定しておくと確実です。
             </p>
             <div className="csv-actions">
               <button
                 type="button"
                 className="button"
                 disabled={busy || extraDir.trim() === ""}
-                onClick={() => void act(async () => setTest(await api.testBackupDir(extraDir)))}
+                onClick={() =>
+                  void act(async () =>
+                    setTest(await api.testBackupDir(extraDir)),
+                  )
+                }
               >
                 書き込みテスト
               </button>
-              <button type="button" className="button primary" disabled={busy || !changed} onClick={() => void save()}>
+              <button
+                type="button"
+                className="button primary"
+                disabled={busy || !changed}
+                onClick={() => void save()}
+              >
                 保存
               </button>
             </div>
             {test && (
-              <div className={test.ok ? "ok-box" : "error-box"} data-testid="backup-test-result">
+              <div
+                className={test.ok ? "ok-box" : "error-box"}
+                data-testid="backup-test-result"
+              >
                 {test.message}
               </div>
             )}
@@ -133,10 +242,17 @@ export function BackupSection() {
 
           <div className="backup-places">
             <PlaceStatus title="サーバーPC内" place={view.local} />
-            {view.extra && <PlaceStatus title="追加の保存先" place={view.extra} />}
+            {view.extra && (
+              <PlaceStatus title="追加の保存先" place={view.extra} />
+            )}
           </div>
           <div className="csv-actions">
-            <button type="button" className="button" disabled={busy} onClick={() => void act(async () => apply(await api.runBackup()))}>
+            <button
+              type="button"
+              className="button"
+              disabled={busy}
+              onClick={() => void act(async () => apply(await api.runBackup()))}
+            >
               {busy ? "実行中…" : "今すぐバックアップ"}
             </button>
           </div>
@@ -149,8 +265,15 @@ export function BackupSection() {
   );
 }
 
-function PlaceStatus({ title, place }: { title: string; place: BackupPlaceStatus }) {
-  const lowFree = place.freeBytes !== null && place.freeBytes < BACKUP_LOW_FREE_BYTES;
+function PlaceStatus({
+  title,
+  place,
+}: {
+  title: string;
+  place: BackupPlaceStatus;
+}) {
+  const lowFree =
+    place.freeBytes !== null && place.freeBytes < BACKUP_LOW_FREE_BYTES;
   return (
     <div className="backup-place" data-testid={`backup-place-${title}`}>
       <h3>{title}</h3>
@@ -161,17 +284,27 @@ function PlaceStatus({ title, place }: { title: string; place: BackupPlaceStatus
         </dd>
         <dt>最後の実行</dt>
         <dd className={place.lastOk === false ? "danger-text" : ""}>
-          {place.lastAttemptAt ? `${shortDateTime(place.lastAttemptAt)}・${place.lastOk ? "成功" : "失敗"}` : "まだありません"}
+          {place.lastAttemptAt
+            ? `${shortDateTime(place.lastAttemptAt)}・${place.lastOk ? "成功" : "失敗"}`
+            : "まだありません"}
           {place.lastMessage && `：${place.lastMessage}`}
         </dd>
         {place.lastOk === false && (
           <>
             <dt>最後の成功</dt>
-            <dd>{place.lastSuccessAt ? shortDateTime(place.lastSuccessAt) : "まだありません"}</dd>
+            <dd>
+              {place.lastSuccessAt
+                ? shortDateTime(place.lastSuccessAt)
+                : "まだありません"}
+            </dd>
           </>
         )}
         <dt>合計</dt>
-        <dd>{place.count === null ? "読み取れません" : `${place.count} 件・${formatBytes(place.totalBytes)}`}</dd>
+        <dd>
+          {place.count === null
+            ? "読み取れません"
+            : `${place.count} 件・${formatBytes(place.totalBytes)}`}
+        </dd>
         <dt>空き</dt>
         <dd className={lowFree ? "danger-text" : ""}>
           {formatBytes(place.freeBytes)}
@@ -193,7 +326,9 @@ export function BackupWarning({ onOpen }: { onOpen: () => void }) {
   }, []);
   if (!view) return null;
   const failed = [view.local, view.extra].find((p) => p && p.lastOk === false);
-  const low = [view.local, view.extra].find((p) => p && p.freeBytes !== null && p.freeBytes < BACKUP_LOW_FREE_BYTES);
+  const low = [view.local, view.extra].find(
+    (p) => p && p.freeBytes !== null && p.freeBytes < BACKUP_LOW_FREE_BYTES,
+  );
   if (!failed && !low) return null;
   return (
     <div className="backup-warning" role="alert">
