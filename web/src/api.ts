@@ -7,6 +7,7 @@ import type {
   MailSendResult,
   MailSettingsRequest,
   BackupSettings,
+  EditingInfo,
   BackupView,
   GeneralSettings,
   UpdateStatusResponse,
@@ -104,6 +105,18 @@ export const api = {
   serverInfo: () => request<{ urls: string[] }>("GET", "/api/server-info"),
 
   createProduct: (req: SaveProductRequest) => request<Product>("POST", "/api/products", req),
+  editingHeartbeat: (productId: number, sessionId: string, userName: string) =>
+    request<{ others: EditingInfo[] }>("POST", `/api/products/${productId}/editing`, { sessionId, userName }),
+  /** 画面を閉じるときにも届くよう keepalive で送る（結果は待たない） */
+  editingLeave: (productId: number, sessionId: string) => {
+    void fetch(`/api/products/${productId}/editing/leave`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId }),
+      keepalive: true,
+    }).catch(() => undefined);
+  },
+  editing: () => request<Record<number, EditingInfo[]>>("GET", "/api/editing"),
   updateProduct: (id: number, req: SaveProductRequest) => request<Product>("PUT", `/api/products/${id}`, req),
   deleteProduct: (id: number, version: number, userName: string) =>
     request<void>("DELETE", `/api/products/${id}`, { version, userName }),

@@ -21,6 +21,8 @@ import { isDeviceId, newDeviceId } from "./devices.js";
 import { isLanAddress, isSelfAddress, lanAddresses, normalizeIp } from "./network.js";
 import type { Updater } from "./updater.js";
 import type { BackupService } from "./backup.js";
+import { EditingPresence } from "./presence.js";
+import { systemClock } from "./clock.js";
 import { APP_VERSION } from "./version.js";
 import type { GeneralSettingsService } from "./generalSettings.js";
 
@@ -33,6 +35,8 @@ export interface AppOptions {
   demo?: boolean;
   /** 受注番号リスト（未指定なら候補は最近入力した番号のみ） */
   orderList?: Pick<OrderNumberList, "list">;
+  /** 編集中の表示（未指定なら buildApp の中で作る） */
+  presence?: EditingPresence;
   /** バックアップ（未指定なら関連 API は 404） */
   backup?: Pick<BackupService, "view" | "saveSettings" | "testDir" | "run">;
   /** プログラムの更新（未指定なら関連 API は「使えない」と返す） */
@@ -281,6 +285,27 @@ export function buildApp(options: AppOptions): FastifyInstance {
     reply.code(201);
     return product;
   });
+  // ------------------------------------------------------------ 編集中の表示（同じ商品を同時に編集しないよう知らせる）
+
+  const presence = options.presence ?? new EditingPresence(systemClock);
+  /** 名前は選んだ名前 → 端末に紐づいた人 → 無し（未登録の名前は表示しない） */
+  const editingName = (req: FastifyRequest) => {
+    try {
+      return service.resolveStockUser(actorOf(req));
+    } catch {
+      return "";
+    }
+  };
+  app.post("/api/products/:id/editing", async (req) => {
+    const id = idOf(req);
+    return { others: presence.heartbeat(id, bodyOf(req).sessionId, editingName(req), clientIp(req)) };
+  });
+  app.post("/api/products/:id/editing/leave", async (req, reply) => {
+    presence.leave(idOf(req), bodyOf(req).sessionId);
+    reply.code(204);
+  });
+  app.get("/api/editing", async () => presence.all());
+
   app.put("/api/products/:id", async (req) => {
     const body = bodyOf(req);
     return service.updateProduct(idOf(req), body, body.version, parseImageChange(body.image), actorOf(req));

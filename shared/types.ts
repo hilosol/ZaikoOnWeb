@@ -78,6 +78,15 @@ export interface Product {
   updatedAt: string;
 }
 
+/** 商品を編集中の人（編集画面を開いている端末） */
+export interface EditingInfo {
+  /** 選んでいる入力者（未選択なら ""） */
+  userName: string;
+  clientIp: string;
+  /** 編集を始めた日時 */
+  since: string;
+}
+
 /** 購入元（仕入先）。URL は任意で、http / https のみ */
 export interface Supplier {
   name: string;

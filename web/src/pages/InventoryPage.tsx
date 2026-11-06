@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { extractCode, matchesKeyword, normalizeText, searchKey } from "../../../shared/text";
-import { MovementLabels, Rules, type CodeChange, type History, type Product } from "../../../shared/types";
+import { MovementLabels, Rules, type CodeChange, type EditingInfo, type History, type Product } from "../../../shared/types";
 import { api, errorMessage } from "../api";
 import { AdjustStockDialog } from "../components/AdjustStockDialog";
 import { QrLabelDialog } from "../components/QrLabelDialog";
 import { HistoryDialog } from "../components/HistoryDialog";
 import { TransferDialog } from "../components/TransferDialog";
+import { EditingBadge } from "../components/EditingBadge";
 import { OrderNoField, useOrderNumbers } from "../components/OrderNoField";
 import { SupplierLinks } from "../components/Suppliers";
 import { ErrorBox, formatNumber, ProductImage, shortDateTime } from "../components/common";
@@ -59,7 +60,11 @@ export function InventoryPage() {
   /** 入出庫の受注番号（商品を切り替えても残す。画面を開き直すと消える） */
   const [orderNo, setOrderNo] = useState("");
 
+  /** 編集画面を開いている人（商品ID → 人）。補助情報なので失敗しても表示しないだけ */
+  const [editing, setEditing] = useState<Record<number, EditingInfo[]>>({});
+
   const reload = useCallback(async () => {
+    api.editing().then(setEditing, () => setEditing({}));
     try {
       const [p, l, h] = await Promise.all([api.products(), api.lowStock(), api.histories(50)]);
       setProducts(p);
@@ -276,6 +281,7 @@ export function InventoryPage() {
                   <span className="code">
                     {p.code}
                     <OffBookBadge product={p} />
+                    <EditingBadge editors={editing[p.id]} />
                     {p.location && (
                       <span className="location">
                         <span className="tag-label">場所</span>
@@ -303,6 +309,7 @@ export function InventoryPage() {
             product={selected}
             onClose={() => setSelectedId(null)}
             onChanged={reload}
+            editors={editing[selected.id]}
             orderNo={orderNo}
             onOrderNoChange={setOrderNo}
           />
@@ -413,12 +420,15 @@ function HistoryList({ histories, compact, onChanged }: { histories: History[]; 
  */
 function StockPanel({
   product,
+  editors,
   onClose,
   onChanged,
   orderNo,
   onOrderNoChange,
 }: {
   product: Product;
+  /** この商品の編集画面を開いている人 */
+  editors?: EditingInfo[];
   onClose: () => void;
   onChanged: () => Promise<void>;
   orderNo: string;
@@ -509,6 +519,7 @@ function StockPanel({
             {product.code}
             {product.category && ` / ${product.category}`}
             <OffBookBadge product={product} />
+            <EditingBadge editors={editors} />
           </div>
           {codeChanges.length > 0 && (
             <div className="small old-code-line" data-testid="old-codes">

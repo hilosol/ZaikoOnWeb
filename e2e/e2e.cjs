@@ -258,11 +258,47 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     await page.getByLabel("概要").fill("青森産の赤いりんご");
     await page.getByRole("button", { name: "保存" }).click();
     await page.locator(".toast", { hasText: "更新しました" }).last().waitFor();
+    check("同時編集：先に開いている人がいると「編集中」と表示", (await page2.getByTestId("editing-notice").textContent()).includes("山田さん"));
     await page2.getByLabel("カテゴリ").fill("フルーツ");
     await page2.getByRole("button", { name: "保存" }).click();
-    await page2.locator(".error-box", { hasText: "他の人が" }).waitFor();
-    check("同時編集は後から保存した側に衝突を通知", await page2.getByRole("button", { name: /最新の内容を読み込む/ }).isVisible());
+    await page2.getByTestId("merge-panel").waitFor();
+    check("同時編集：違う項目なら相手の変更を取り込み、自分の変更も残す（選ぶ項目なし）",
+      (await page2.getByLabel("商品名（必須）").inputValue()) === "りんご（青森）" &&
+        (await page2.getByLabel("カテゴリ").inputValue()) === "フルーツ" &&
+        (await page2.locator(".merge-row").count()) === 0 &&
+        (await page2.getByTestId("merge-panel").textContent()).includes("商品名"));
     await page2.screenshot({ path: `${SHOTS}/04_desktop_conflict.png` });
+    await page2.getByRole("button", { name: "保存" }).click();
+    await page2.locator(".toast", { hasText: "更新しました" }).last().waitFor();
+    const merged = await page.evaluate(async (id) => (await (await fetch(`/api/products/${id}`)).json()), appleId);
+    check("同時編集：取り込んだ内容で保存できる", merged.name === "りんご（青森）" && merged.category === "フルーツ" && merged.note.startsWith("棚卸"));
+
+    // 同じ項目を違う内容に変えた場合は、どちらにするか選ぶ
+    await page.goto(`${base}/#/products/${appleId}`);
+    await page2.goto(`${base}/#/products/${appleId}`);
+    await page.getByLabel("保管場所").fill("上段A-1,上段B-1,下段C");
+    await page.getByRole("button", { name: "保存" }).click();
+    await page.locator(".toast", { hasText: "更新しました" }).last().waitFor();
+    await page2.getByLabel("保管場所").fill("倉庫2");
+    await page2.getByLabel("カテゴリ").fill("果物");
+    await page2.getByRole("button", { name: "保存" }).click();
+    const row = page2.getByTestId("merge-location");
+    await row.waitFor();
+    check("同時編集：同じ項目がぶつかったら相手の内容・自分の内容を並べて選ばせる",
+      (await row.textContent()).includes("上段A-1,上段B-1,下段C") && (await row.textContent()).includes("倉庫2") && (await page2.locator(".merge-row").count()) === 1);
+    await page2.waitForTimeout(600);
+    await page2.screenshot({ path: `${SHOTS}/04b_desktop_merge.png` });
+    await row.getByRole("radio").first().check(); // 相手の内容
+    check("同時編集：「相手の内容」を選ぶと入力欄に反映", (await page2.getByLabel("保管場所").inputValue()) === "上段A-1,上段B-1,下段C");
+    await page2.getByRole("button", { name: "保存" }).click();
+    await page2.locator(".toast", { hasText: "更新しました" }).last().waitFor();
+    const chosen = await page.evaluate(async (id) => (await (await fetch(`/api/products/${id}`)).json()), appleId);
+    check("同時編集：選んだ内容で保存", chosen.location === "上段A-1,上段B-1,下段C" && chosen.category === "果物", `${chosen.location} / ${chosen.category}`);
+    // 閉じたときの知らせは非同期で届くので、少し待つ
+    const cleared = await page
+      .waitForFunction(async () => Object.keys(await (await fetch("/api/editing")).json()).length === 0, null, { timeout: 5000, polling: 300 })
+      .then(() => true, () => false);
+    check("編集画面を閉じると「編集中」は消える", cleared);
     await page2.close();
 
     // PC 画面には「読み取り」「＋商品登録」ボタンを置かない（読み取りは USB リーダー＝検索欄、またはスマホ用画面）

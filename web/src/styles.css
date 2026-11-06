@@ -2923,3 +2923,74 @@ button.product-image.zoomable:focus-visible {
   color: var(--danger);
   font-size: 14px;
 }
+
+/* ------------------------------------------------------------ 編集中の表示・保存がぶつかったとき */
+
+.editing-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #fff1d6;
+  color: #8a5300;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.editing-notice {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-left: 4px solid #d4a72c;
+  border-radius: 6px;
+  background: #fff8c5;
+  font-size: 14px;
+}
+
+.merge-panel {
+  scroll-margin-top: 80px; /* 上部に固定した見出しに隠れないように */
+  margin: 8px 0;
+  padding: 12px 14px;
+  border: 1px solid #d4a72c;
+  border-radius: var(--radius);
+  background: #fffdf3;
+}
+
+.merge-panel h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.merge-row {
+  display: grid;
+  grid-template-columns: 7em 1fr 1fr;
+  gap: 8px;
+  align-items: start;
+  padding: 6px 0;
+  border-top: 1px solid #f0e6c0;
+}
+
+.merge-row label {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 14px;
+}
+
+.merge-row label.chosen {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+@media (max-width: 600px) {
+  .merge-row {
+    grid-template-columns: 1fr;
+  }
+}
