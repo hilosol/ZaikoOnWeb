@@ -150,3 +150,30 @@ e2e/               ブラウザでの動作確認スクリプト
 - 端末の IP は DHCP で変わることがあるため、厳密な端末特定が必要なら IP 固定（DHCP 予約）を推奨
 - 商品数が数万件を超える場合は検索方式（全文検索）の見直しが必要
 - 棚卸し（実在庫との差異調整）、ロケーション（保管場所）管理、ログイン認証は未実装
+
+## GitHub から更新する（共有PC）
+
+ソースは GitHub（Private リポジトリ）で管理しています。共有PCでは `update.bat` で最新に更新できます。
+
+### 初回の準備（1回だけ）
+1. 共有PCに「Git for Windows」を入れる（https://git-scm.com/download/win 。設定は既定のままで可）。
+2. 今の在庫管理のフォルダ（`data` フォルダがある場所）で PowerShell を開き、次を実行する
+   （`data` は Git の管理外なので、在庫データ・写真・設定は消えません）。
+   ```powershell
+   git init -b main
+   git remote add origin https://github.com/hilosol/<リポジトリ名>.git
+   git fetch origin
+   git reset --hard origin/main
+   git branch --set-upstream-to=origin/main main
+   ```
+   初回の `git fetch` で GitHub へのサインイン画面が出るので、リポジトリを見られるアカウントでサインインします。
+   共有PCに個人のアカウントを残したくない場合は、このリポジトリの「読み取り専用」に限った Fine-grained token を作って使ってください。
+
+### 更新するとき
+- `update.bat` をダブルクリック（自動起動を登録している場合は右クリック →「管理者として実行」）。
+- 最新を取得 → 必要なパッケージを入れる → ビルド → サーバーを再起動、まで自動で行います（1〜数分）。
+- 更新が無ければ何もしません。ビルドし直したいときは `update.bat --force`。
+- このPCでプログラムのファイル（bat ファイル等）を書き換えていると、混ざらないよう中止します。
+- ビルドに失敗した場合は、前の版に戻してサーバーを起動し直します（使い続けられます）。
+- 自動起動を登録していない場合は、`start.bat` の画面を閉じてから実行し、終わったら `start.bat` で起動してください。
+
