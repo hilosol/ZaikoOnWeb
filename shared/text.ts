@@ -1,4 +1,4 @@
-/** 全角英数記号を半角にし、前後の空白を除く（商品コードや検索語の比較用）。 */
+/** 全角英数記号を半角にし、前後の空白を除く（商品IDや検索語の比較用）。 */
 export function normalizeText(value: unknown): string {
   if (typeof value !== "string") return "";
   return value.normalize("NFKC").trim();

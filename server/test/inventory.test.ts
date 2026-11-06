@@ -46,7 +46,7 @@ describe("商品登録", () => {
     expect(p.name).toBe("りんご");
   });
 
-  it("全角半角違いでも商品コードの重複は拒否する", () => {
+  it("全角半角違いでも商品IDの重複は拒否する", () => {
     f.service.registerProduct(input(), keep, f.actor);
     expect(() => f.service.registerProduct(input({ code: "Ａ００１", name: "別" }), keep, f.actor)).toThrow(/既に登録/);
   });

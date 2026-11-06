@@ -102,8 +102,8 @@ export function MobileApp() {
       }
       setProduct(p);
       setIdText(p.code);
-      // 旧コード（コード変更前のラベル）で開いた場合は知らせる
-      if (oldCode) setMessage({ text: `「${oldCode}」は旧コードです。現在のコードは「${p.code}」です。`, kind: "info" });
+      // 旧ID（ID変更前のラベル）で開いた場合は知らせる
+      if (oldCode) setMessage({ text: `「${oldCode}」は旧IDです。現在のIDは「${p.code}」です。`, kind: "info" });
       // 再読み込み・ブックマークで同じ商品を開けるよう、アドレスにも反映する
       window.history.replaceState(null, "", `/m?id=${encodeURIComponent(p.code)}`);
       setQtyText("1");

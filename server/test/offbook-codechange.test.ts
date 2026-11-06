@@ -56,16 +56,16 @@ describe("簿外", () => {
     expect(csv.split("\r\n")[0]).toMatch(/,簿外$/);
     expect(csv.split("\r\n")[1]).toMatch(/,○$/);
 
-    const off = f.service.importProducts("商品コード,簿外\nA001,\n", false, f.actor);
+    const off = f.service.importProducts("商品ID,簿外\nA001,\n", false, f.actor);
     expect(off.rows[0]!.changes).toContain("簿外を解除");
     expect(f.service.getProduct(p.id).offBook).toBe(false);
 
-    f.service.importProducts("商品コード,簿外\nA001,はい\n", false, f.actor);
+    f.service.importProducts("商品ID,簿外\nA001,はい\n", false, f.actor);
     expect(f.service.getProduct(p.id).offBook).toBe(true);
-    f.service.importProducts("商品コード,商品名\nA001,りんご改\n", false, f.actor);
+    f.service.importProducts("商品ID,商品名\nA001,りんご改\n", false, f.actor);
     expect(f.service.getProduct(p.id).offBook).toBe(true);
 
-    const bad = f.service.importProducts("商品コード,簿外\nA001,たぶん\n", true, f.actor);
+    const bad = f.service.importProducts("商品ID,簿外\nA001,たぶん\n", true, f.actor);
     expect(bad.errors[0]!.messages[0]).toMatch(/簿外は「○」か空欄/);
   });
 
@@ -78,7 +78,7 @@ describe("簿外", () => {
   });
 });
 
-describe("商品コードの変更履歴", () => {
+describe("商品IDの変更履歴", () => {
   it("コードを変えたら旧→新・入力者・IP を記録する（他の項目の変更では記録しない）", () => {
     const p = f.service.registerProduct(input(), keep, f.actor);
     const v2 = f.service.updateProduct(p.id, input({ name: "青りんご" }), p.version, keep, f.actor);
@@ -103,7 +103,7 @@ describe("商品コードの変更履歴", () => {
     expect(f.service.codeChanges()).toHaveLength(0);
   });
 
-  it("旧コードで読み取っても現在の商品が見つかる（大文字小文字・ハイフン違いも）", () => {
+  it("旧IDで読み取っても現在の商品が見つかる（大文字小文字・ハイフン違いも）", () => {
     const p = f.service.registerProduct(input(), keep, f.actor);
     f.service.updateProduct(p.id, input({ code: "AP-00001" }), p.version, keep, f.actor);
     expect(f.service.lookupCode("AP-00001")).toMatchObject({ product: { id: p.id }, oldCode: null });
@@ -112,14 +112,14 @@ describe("商品コードの変更履歴", () => {
     expect(f.service.lookupCode("ZZZ")).toEqual({ product: null, oldCode: null });
   });
 
-  it("旧コードを別の商品が使っている場合は、現在の持ち主を優先する", () => {
+  it("旧IDを別の商品が使っている場合は、現在の持ち主を優先する", () => {
     const p = f.service.registerProduct(input(), keep, f.actor);
     f.service.updateProduct(p.id, input({ code: "A001-OLD" }), p.version, keep, f.actor);
     const q = f.service.registerProduct(input({ code: "A001", name: "新りんご" }), keep, f.actor);
     expect(f.service.lookupCode("A001")).toMatchObject({ product: { id: q.id }, oldCode: null });
   });
 
-  it("同じ旧コードが何度も使われた場合は最後の変更を採る", () => {
+  it("同じ旧IDが何度も使われた場合は最後の変更を採る", () => {
     const p = f.service.registerProduct(input(), keep, f.actor);
     f.service.updateProduct(p.id, input({ code: "X1" }), p.version, keep, f.actor);
     const q = f.service.registerProduct(input({ code: "A001", name: "2代目" }), keep, f.actor);
@@ -127,7 +127,7 @@ describe("商品コードの変更履歴", () => {
     expect(f.service.lookupCode("A001")).toMatchObject({ product: { id: q.id }, oldCode: "A001" });
   });
 
-  it("商品を削除しても変更履歴は残り、旧コードでは見つからない", () => {
+  it("商品を削除しても変更履歴は残り、旧IDでは見つからない", () => {
     const p = f.service.registerProduct(input(), keep, f.actor);
     const v2 = f.service.updateProduct(p.id, input({ code: "X1" }), p.version, keep, f.actor);
     f.service.deleteProduct(p.id, v2.version, f.actor);
@@ -140,7 +140,7 @@ describe("履歴CSVの自動保存", () => {
   const dir = () => path.join(f.dir, "logs");
   const read = (name: string) => fs.readFileSync(path.join(dir(), name), "utf8");
 
-  it("月ごとに入出庫履歴・操作ログ・コード変更履歴を書き出す（BOM付き）", () => {
+  it("月ごとに入出庫履歴・操作ログ・ID変更履歴を書き出す（BOM付き）", () => {
     const p = f.service.registerProduct(input(), keep, f.actor);
     f.service.changeStock(p.id, "OUT", 2, f.actor, { comment: "修理用" });
     f.service.updateProduct(p.id, input({ code: "AP-00001" }), p.version, keep, f.actor);
@@ -148,10 +148,10 @@ describe("履歴CSVの自動保存", () => {
 
     expect(status.failures).toEqual([]);
     expect(fs.readdirSync(dir()).sort()).toEqual(["コード変更履歴_2026-11.csv", "入出庫履歴_2026-11.csv", "操作ログ_2026-11.csv"].sort());
-    expect(read("入出庫履歴_2026-11.csv")).toMatch(/^﻿日時,商品コード/);
+    expect(read("入出庫履歴_2026-11.csv")).toMatch(/^﻿日時,商品ID/);
     expect(read("入出庫履歴_2026-11.csv")).toContain("出庫,,,2,8,,修理用,山田,192.168.1.10");
     expect(read("コード変更履歴_2026-11.csv")).toContain("A001,AP-00001,りんご,山田,192.168.1.10");
-    expect(read("操作ログ_2026-11.csv")).toContain("商品更新,AP-00001,コード: A001 → AP-00001");
+    expect(read("操作ログ_2026-11.csv")).toContain("商品更新,AP-00001,ID: A001 → AP-00001");
   });
 
   it("今月・先月は毎回書き直し、それより前の月は無い場合だけ書く", () => {

@@ -93,8 +93,8 @@ export function normalizeProductInput(input: Partial<ProductInput> | null | unde
   const summary = trimText(input?.summary).replace(/\r\n?/g, "\n");
   const errors: string[] = [];
 
-  if (!code) errors.push("商品コードを入力してください。");
-  else if (code.length > Rules.codeMaxLength) errors.push(`商品コードは${Rules.codeMaxLength}文字以内で入力してください。`);
+  if (!code) errors.push("商品IDを入力してください。");
+  else if (code.length > Rules.codeMaxLength) errors.push(`商品IDは${Rules.codeMaxLength}文字以内で入力してください。`);
 
   if (!name) errors.push("商品名を入力してください。");
   else if (name.length > Rules.nameMaxLength) errors.push(`商品名は${Rules.nameMaxLength}文字以内で入力してください。`);
@@ -432,7 +432,7 @@ export class InventoryService {
   // ================================================================ 参照
 
   /**
-   * 商品コード・商品名・カテゴリで検索（大文字小文字・全角半角を区別しない）。
+   * 商品ID・商品名・カテゴリで検索（大文字小文字・全角半角を区別しない）。
    * SQLite の LIKE / lower() は ASCII 以外を正しく扱えないため、絞り込みはメモリ上で行う。
    * 数万件規模になったら全文検索（FTS5）の導入を検討する。
    */
@@ -470,16 +470,16 @@ export class InventoryService {
   }
 
   /**
-   * 読み取り・入力したコードから商品を探す。現在のコードで見つからなければ、変更前のコード（旧コード）でも探す
-   * （コード変更前に印刷した QR ラベルを読んでも、現在の商品を表示するため）。
-   * oldCode: 旧コードで見つかった場合、その旧コード
+   * 読み取り・入力したコードから商品を探す。現在のコードで見つからなければ、変更前のコード（旧ID）でも探す
+   * （ID変更前に印刷した QR ラベルを読んでも、現在の商品を表示するため）。
+   * oldCode: 旧IDで見つかった場合、その旧ID
    */
   lookupCode(code: unknown): { product: Product | null; oldCode: string | null } {
     const current = this.findByCode(code);
     if (current) return { product: current, oldCode: null };
     const c = normalizeText(code);
     if (!c) return { product: null, oldCode: null };
-    // 同じ旧コードが何度か使われていた場合は、最後に変更されたものを採る
+    // 同じ旧IDが何度か使われていた場合は、最後に変更されたものを採る
     let row = this.db
       .prepare("SELECT * FROM product_code_changes WHERE old_code = ? COLLATE NOCASE ORDER BY id DESC LIMIT 1")
       .get(c) as Row | undefined;
@@ -495,7 +495,7 @@ export class InventoryService {
     return productRow ? { product: this.toOneProduct(productRow), oldCode: String(row.old_code) } : { product: null, oldCode: null };
   }
 
-  /** 商品コードの変更履歴（新しい順）。productId 指定時はその商品のみ */
+  /** 商品IDの変更履歴（新しい順）。productId 指定時はその商品のみ */
   codeChanges(productId?: number): CodeChange[] {
     const rows =
       productId === undefined
@@ -506,7 +506,7 @@ export class InventoryService {
 
   // ---------------------------------------------------------------- 月別（CSV の自動保存用。month = "YYYY-MM"）
 
-  /** 入出庫履歴・操作ログ・コード変更のいずれかがある月（古い順） */
+  /** 入出庫履歴・操作ログ・ID変更のいずれかがある月（古い順） */
   activityMonths(): string[] {
     const rows = this.db
       .prepare(
@@ -785,8 +785,8 @@ export class InventoryService {
 
   /**
    * 在庫CSVを取り込む。dryRun = true なら確認のみ（DB は変更しない）。
-   * ・新しい商品コード → 新規登録（在庫は「初期登録」として履歴に残る）
-   * ・登録済みの商品コード → CSV にある列の項目を上書き。在庫数が違えば CSV の数に合わせ「棚卸調整」として履歴に残す
+   * ・新しい商品ID → 新規登録（在庫は「初期登録」として履歴に残る）
+   * ・登録済みの商品ID → CSV にある列の項目を上書き。在庫数が違えば CSV の数に合わせ「棚卸調整」として履歴に残す
    * ・CSV に無い商品は変更しない（削除しない）。CSV に無い列の項目も変更しない
    * 1行でもエラーがあれば何も反映しない（全件を1トランザクションで反映）。
    */
@@ -807,7 +807,7 @@ export class InventoryService {
     }
     const map = mapColumns(head.cells);
     if (map.index.code === undefined) {
-      throw new ValidationError(`「商品コード」の列が見つかりません（見出し: ${head.cells.join(", ")}）。`);
+      throw new ValidationError(`「商品ID」の列が見つかりません（見出し: ${head.cells.join(", ")}）。`);
     }
     if (map.duplicated.length > 0) {
       throw new ValidationError(`同じ項目の列が複数あります: ${map.duplicated.join(", ")}`);
@@ -827,11 +827,11 @@ export class InventoryService {
       const code = normalizeText(get("code"));
       const messages: string[] = [];
       if (!code) {
-        errors.push({ line: row.line, code: "", messages: ["商品コードが空です。"] });
+        errors.push({ line: row.line, code: "", messages: ["商品IDが空です。"] });
         continue;
       }
       if (seen.has(code)) {
-        errors.push({ line: row.line, code, messages: [`${seen.get(code)}行目と商品コードが重複しています。`] });
+        errors.push({ line: row.line, code, messages: [`${seen.get(code)}行目と商品IDが重複しています。`] });
         continue;
       }
       seen.set(code, row.line);
@@ -1162,11 +1162,11 @@ export class InventoryService {
 
   private ensureCodeIsUnique(code: string, excludeId: number | null): void {
     const row = this.db.prepare("SELECT id FROM products WHERE code = ?").get(code) as Row | undefined;
-    if (row && Number(row.id) !== excludeId) throw new ValidationError(`商品コード「${code}」は既に登録されています。`);
+    if (row && Number(row.id) !== excludeId) throw new ValidationError(`商品ID「${code}」は既に登録されています。`);
   }
 
   private translateUnique(e: unknown): unknown {
-    return isUniqueViolation(e) ? new ValidationError("同じ商品コードが既に登録されています。") : e;
+    return isUniqueViolation(e) ? new ValidationError("同じ商品IDが既に登録されています。") : e;
   }
 }
 
@@ -1183,7 +1183,7 @@ function describeChanges(before: Product, after: Product): string {
   const add = (label: string, a: unknown, b: unknown) => {
     if (a !== b) changes.push(`${label}: ${a ?? "なし"} → ${b ?? "なし"}`);
   };
-  add("コード", before.code, after.code);
+  add("ID", before.code, after.code);
   add("商品名", before.name, after.name);
   add("カテゴリ", before.category, after.category);
   add("保管場所", before.location, after.location);

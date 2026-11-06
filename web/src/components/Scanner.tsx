@@ -313,10 +313,10 @@ export function Scanner({ onDetected, onClose }: { onDetected: (code: string) =>
         <input
           type="text"
           inputMode="text"
-          placeholder="コードを手入力"
+          placeholder="IDを手入力"
           value={manual}
           onChange={(e) => setManual(e.target.value)}
-          aria-label="コードを手入力"
+          aria-label="IDを手入力"
         />
         <button type="submit" className="button" disabled={!manual.trim()}>
           決定

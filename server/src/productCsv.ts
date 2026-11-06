@@ -4,7 +4,7 @@ import { normalizeText } from "./text.js";
 
 /** 在庫CSVの列。出力と取り込みで同じ見出しを使い、出力したものをそのまま取り込めるようにする */
 export const PRODUCT_COLUMNS = [
-  { field: "code", header: "商品コード", aliases: ["ID", "コード", "商品ID", "品番"] },
+  { field: "code", header: "商品ID", aliases: ["ID", "コード", "商品コード", "品番"] },
   { field: "name", header: "商品名", aliases: ["名称", "品名"] },
   { field: "summary", header: "概要", aliases: ["説明"] },
   { field: "category", header: "カテゴリ", aliases: ["カテゴリー", "分類"] },

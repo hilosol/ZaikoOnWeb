@@ -104,8 +104,8 @@ describe("入出庫の検索", () => {
   });
 });
 
-describe("修正記録・操作ログ・コード変更の検索", () => {
-  it("修正記録に商品コード・名前を付け、キーワードで探せる", () => {
+describe("修正記録・操作ログ・ID変更の検索", () => {
+  it("修正記録に商品ID・名前を付け、キーワードで探せる", () => {
     f.service.changeStock(apple, "OUT", 1, f.actor);
     const h = f.service.recentHistories(1)[0]!;
     f.service.editHistory(h.id, { comment: "棚卸し用" }, f.actor);
@@ -114,7 +114,7 @@ describe("修正記録・操作ログ・コード変更の検索", () => {
     expect(f.service.searchHistories({ kind: "edits", q: "コメント" }).result.total).toBe(1);
   });
 
-  it("操作ログは操作の種類名でも探せる。コード変更は旧コードで探せる", () => {
+  it("操作ログは操作の種類名でも探せる。ID変更は旧IDで探せる", () => {
     const p = f.service.getProduct(apple);
     f.service.updateProduct(apple, { code: "AP-99999", name: "リンゴ", category: "", warningStock: 0 }, p.version, { action: "keep" }, f.actor);
     expect(f.service.searchHistories({ kind: "audit", q: "商品更新 99999" }).result.total).toBe(1);
@@ -137,7 +137,7 @@ describe("API", () => {
       expect(csv.headers["content-disposition"]).toContain(encodeURIComponent("入出庫_20260801-20261130.csv"));
       expect(csv.body.split("\r\n").filter(Boolean)).toHaveLength(4); // 見出し + 初期登録2 + 出庫1
       const edits = await app.inject({ url: "/api/history-search.csv?kind=edits" });
-      expect(edits.body).toMatch(/^﻿日時,履歴ID,商品コード,商品名,区分,項目,修正前,修正後,入力者,端末IP/);
+      expect(edits.body).toMatch(/^﻿日時,履歴ID,商品ID,商品名,区分,項目,修正前,修正後,入力者,端末IP/);
     } finally {
       await app.close();
     }

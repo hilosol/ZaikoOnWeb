@@ -35,7 +35,7 @@ export interface EditableFields {
 export type FieldKey = Exclude<keyof EditableFields, "imageFile">;
 
 export const FieldLabels: Record<FieldKey, string> = {
-  code: "商品コード",
+  code: "商品ID",
   name: "商品名",
   category: "カテゴリ",
   location: "保管場所",

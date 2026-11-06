@@ -760,7 +760,7 @@ function StockCsvSection() {
       </div>
       <p className="muted small">
         列:
-        商品コード（必須）・商品名（新規は必須）・概要・カテゴリ・保管場所・在庫・警告在庫・備考・簿外（○
+        商品ID（必須）・商品名（新規は必須）・概要・カテゴリ・保管場所・在庫・警告在庫・備考・簿外（○
         か空欄）。無い列の項目は変更しません。文字コードは UTF-8・Shift_JIS
         どちらも可。
       </p>
@@ -822,7 +822,7 @@ function StockCsvSection() {
                 <thead>
                   <tr>
                     <th>行</th>
-                    <th>商品コード</th>
+                    <th>商品ID</th>
                     <th>区分</th>
                     <th>内容</th>
                   </tr>

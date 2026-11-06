@@ -27,7 +27,7 @@ const MIGRATIONS: readonly string[] = [
     updated_at    TEXT    NOT NULL
   );
 
-  -- 商品を削除しても履歴は残す（商品コード・商品名は記録時点の値を保持）
+  -- 商品を削除しても履歴は残す（商品ID・商品名は記録時点の値を保持）
   CREATE TABLE histories (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     product_id   INTEGER NULL,
@@ -144,7 +144,7 @@ const MIGRATIONS: readonly string[] = [
   );
   `,
 
-  // v8 → v9: 簿外フラグ、商品コードの変更履歴（商品を削除しても残すため外部キーは付けない）
+  // v8 → v9: 簿外フラグ、商品IDの変更履歴（商品を削除しても残すため外部キーは付けない）
   `
   ALTER TABLE products ADD COLUMN off_book INTEGER NOT NULL DEFAULT 0 CHECK (off_book IN (0, 1));
   CREATE TABLE product_code_changes (

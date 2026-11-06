@@ -54,7 +54,7 @@ describe("在庫CSVの出力・取り込み", () => {
       f.actor,
     );
   const imp = (csv: string, dryRun = false) => f.service.importProducts(csv, dryRun, f.actor);
-  const HEADER = "商品コード,商品名,概要,カテゴリ,保管場所,在庫,警告在庫,備考";
+  const HEADER = "商品ID,商品名,概要,カテゴリ,保管場所,在庫,警告在庫,備考";
 
   it("出力した CSV をそのまま取り込むと変更なし（往復できる）", () => {
     reg({ summary: "赤い,果物", note: "1行目\n2行目" });
@@ -92,7 +92,7 @@ describe("在庫CSVの出力・取り込み", () => {
   it("CSV に無い列・空欄の在庫は変更しない。CSV に無い商品も変更しない", () => {
     reg();
     reg({ code: "B", name: "みかん" });
-    const r = imp("商品コード,保管場所,在庫\nA001,倉庫,");
+    const r = imp("商品ID,保管場所,在庫\nA001,倉庫,");
     expect(r.updated).toBe(1);
     expect(f.service.getProduct(1)).toMatchObject({ name: "りんご", location: "倉庫", stock: 10, category: "果物" });
     expect(f.service.findByCode("B")!.name).toBe("みかん");
@@ -104,26 +104,26 @@ describe("在庫CSVの出力・取り込み", () => {
     expect(r.dryRun).toBe(true);
     expect(r.errors.map((e) => [e.line, e.messages[0]])).toEqual([
       [2, "在庫は整数で入力してください（「abc」）。"],
-      [3, "商品コードが空です。"],
+      [3, "商品IDが空です。"],
       [4, "商品名を入力してください。"],
       [5, `在庫は0〜${Rules.maxStock.toLocaleString("ja-JP")}の範囲で入力してください（「-1」）。`],
-      [6, "2行目と商品コードが重複しています。"],
+      [6, "2行目と商品IDが重複しています。"],
     ]);
     expect(f.service.getProduct(1).name).toBe("りんご");
   });
 
   it("全角数字・カンマ付きの数・全角コード・数式対策の ' を解釈する", () => {
     reg();
-    imp(`商品コード,在庫,警告在庫,商品名\nＡ００１,"１,０００",５,'=りんご`);
+    imp(`商品ID,在庫,警告在庫,商品名\nＡ００１,"１,０００",５,'=りんご`);
     expect(f.service.getProduct(1)).toMatchObject({ stock: 1000, warningStock: 5, name: "=りんご" });
   });
 
-  it("商品コードの列が無い・新規なのに商品名の列が無い・空・行数超過はエラー", () => {
-    expect(() => imp("名前,在庫\nx,1")).toThrow(/商品コード/);
-    expect(imp("商品コード,在庫\nNEW,1").errors[0]!.messages[0]).toMatch(/商品名/);
+  it("商品IDの列が無い・新規なのに商品名の列が無い・空・行数超過はエラー", () => {
+    expect(() => imp("名前,在庫\nx,1")).toThrow(/商品ID/);
+    expect(imp("商品ID,在庫\nNEW,1").errors[0]!.messages[0]).toMatch(/商品名/);
     expect(() => imp("")).toThrow(ValidationError);
-    expect(() => imp("商品コード,商品名")).toThrow(/データ行/);
-    const many = ["商品コード,商品名", ...Array.from({ length: Rules.maxImportRows + 1 }, (_, i) => `C${i},n`)].join("\n");
+    expect(() => imp("商品ID,商品名")).toThrow(/データ行/);
+    const many = ["商品ID,商品名", ...Array.from({ length: Rules.maxImportRows + 1 }, (_, i) => `C${i},n`)].join("\n");
     expect(() => imp(many)).toThrow(/行まで/);
   });
 

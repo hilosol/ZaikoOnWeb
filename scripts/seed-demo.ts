@@ -389,7 +389,7 @@ for (let day = new Date(start.getTime() + 86_400_000); day < today; day = new Da
   }
 }
 
-// 年の途中で商品コードを変更した例（旧コードの QR を読んでも開ける）
+// 年の途中で商品IDを変更した例（旧IDの QR を読んでも開ける）
 setTime(new Date(today.getTime() - 120 * 86_400_000), 10, 0);
 for (const p of [products[3]!, products[40]!]) {
   const cur = fresh(p.id);

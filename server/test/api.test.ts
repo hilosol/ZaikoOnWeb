@@ -82,7 +82,7 @@ describe("API", () => {
   it("業務エラーは日本語メッセージと適切なステータスを返す", async () => {
     const res = await app.inject({ method: "POST", url: "/api/products", payload: { ...newProduct, code: "" } });
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toContain("商品コードを入力");
+    expect(res.json().error).toContain("商品IDを入力");
 
     expect((await app.inject({ url: "/api/products/999" })).statusCode).toBe(404);
     expect((await app.inject({ url: "/api/products/abc" })).statusCode).toBe(400);
@@ -137,7 +137,7 @@ describe("API", () => {
     const res = await app.inject({ url: "/api/histories.csv" });
     expect(res.headers["content-type"]).toContain("text/csv");
     expect(res.headers["content-disposition"]).toContain("attachment");
-    expect(res.body.startsWith("﻿日時,商品コード")).toBe(true);
+    expect(res.body.startsWith("﻿日時,商品ID")).toBe(true);
     expect(res.body).toContain("A001,りんご,初期登録,,,5,5,,,山田,127.0.0.1");
   });
 
@@ -214,7 +214,7 @@ describe("CSV", () => {
       },
     ]);
     expect(csv.split("\r\n")).toEqual([
-      "﻿日時,商品コード,商品名,区分,理由,紐づけID,数量,処理後在庫,移管先,コメント,入力者,端末IP,取消,履歴ID",
+      "﻿日時,商品ID,商品名,区分,理由,紐づけID,数量,処理後在庫,移管先,コメント,入力者,端末IP,取消,履歴ID",
       '2026-01-02 03:04:05,A,"りんご, 青",入庫,購入,YHO-26002,3,8,,"棚卸し, 再確認",山田,192.168.1.2,,1',
       "",
     ]);

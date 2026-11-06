@@ -121,7 +121,7 @@ export interface History {
   createdAt: string;
 }
 
-/** 商品コードの変更履歴 */
+/** 商品IDの変更履歴 */
 export interface CodeChange {
   id: number;
   /** 商品を削除した後も履歴は残す（その場合も ID はそのまま） */
@@ -398,7 +398,7 @@ export const HistoryKindLabels: Record<HistoryKind, string> = {
   movements: "入出庫",
   edits: "履歴の修正",
   audit: "操作ログ",
-  codes: "コード変更",
+  codes: "ID変更",
 };
 
 /** 取消の扱い：all = すべて表示 / exclude = 取り消された履歴と取消の履歴を除く / only = それらだけ */
@@ -409,7 +409,7 @@ export interface HistorySearchQuery {
   /** 期間（YYYY-MM-DD。両端を含む。省略 = 制限なし） */
   from?: string;
   to?: string;
-  /** キーワード（商品コード・名前・コメント・移管先・入力者など。大文字小文字・全角半角・ハイフン・ひらがなカタカナを区別しない） */
+  /** キーワード（商品ID・名前・コメント・移管先・入力者など。大文字小文字・全角半角・ハイフン・ひらがなカタカナを区別しない） */
   q?: string;
   /** 以下は入出庫のみ */
   types?: MovementType[];
@@ -422,7 +422,7 @@ export interface HistorySearchQuery {
   offset?: number;
 }
 
-/** 修正記録の行（どの商品の履歴か分かるよう、商品コード・名前を付ける） */
+/** 修正記録の行（どの商品の履歴か分かるよう、商品ID・名前を付ける） */
 export interface HistoryEditRow extends HistoryEdit {
   productCode: string;
   productName: string;

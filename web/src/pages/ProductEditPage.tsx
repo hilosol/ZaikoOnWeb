@@ -264,7 +264,7 @@ export function ProductEditPage({
       ? parseNonNegativeInt(form.initialStock, Rules.maxStock)
       : 0;
     if (!normalizeText(form.code))
-      errors.push("商品コードを入力してください。");
+      errors.push("商品IDを入力してください。");
     if (!form.name.trim()) errors.push("商品名を入力してください。");
     if (initialStock === null)
       errors.push(
@@ -279,11 +279,11 @@ export function ProductEditPage({
       return;
     }
 
-    // コードの変更は、印刷済みのラベル・他の資料との対応が変わるため確認する（旧コードは履歴に残り、読み取りでも見つかる）
+    // コードの変更は、印刷済みのラベル・他の資料との対応が変わるため確認する（旧IDは履歴に残り、読み取りでも見つかる）
     if (original && normalizeText(form.code) !== original.code) {
       const ok = window.confirm(
-        `商品コードを「${original.code}」から「${normalizeText(form.code)}」に変更します。\n` +
-          "変更は履歴に残り、旧コードのラベルを読み取っても、この商品が表示されます。\nよろしいですか？",
+        `商品IDを「${original.code}」から「${normalizeText(form.code)}」に変更します。\n` +
+          "変更は履歴に残り、旧IDのラベルを読み取っても、この商品が表示されます。\nよろしいですか？",
       );
       if (!ok) return;
     }
@@ -513,7 +513,7 @@ export function ProductEditPage({
       >
         <div className="fields">
           <label className="field">
-            <span>商品コード（必須）</span>
+            <span>商品ID（必須）</span>
             <div className="input-with-button">
               <input
                 type="text"

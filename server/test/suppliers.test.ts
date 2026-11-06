@@ -149,7 +149,7 @@ describe("購入元の保存", () => {
 
   it("CSV 取り込みで商品を更新しても購入元は消えない", () => {
     const p = f.service.registerProduct(input({ suppliers: two }), keep, f.actor);
-    f.service.importProducts("商品コード,商品名,カテゴリ,警告在庫\nA001,りんご改,果物,3\n", false, f.actor);
+    f.service.importProducts("商品ID,商品名,カテゴリ,警告在庫\nA001,りんご改,果物,3\n", false, f.actor);
     const after = f.service.getProduct(p.id);
     expect(after.name).toBe("りんご改");
     expect(after.suppliers).toEqual(two);

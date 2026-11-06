@@ -35,7 +35,7 @@ async function waitHealthy() {
 
 async function registerProduct(page, { code, name, category, initial, warning, image, location }) {
   await page.getByRole("button", { name: "商品登録", exact: true }).first().click();
-  await page.locator(".field:has-text('商品コード') input").fill(code);
+  await page.locator(".field:has-text('商品ID') input").fill(code);
   await page.getByLabel("商品名（必須）").fill(name);
   await page.getByLabel("カテゴリ").fill(category);
   if (location) await page.getByLabel("保管場所").fill(location);
@@ -116,7 +116,7 @@ async function registerProduct(page, { code, name, category, initial, warning, i
 
     // 入力エラー（全角の重複コード・必須漏れ・壊れた画像）
     await page.getByRole("button", { name: "商品登録", exact: true }).first().click();
-    await page.locator(".field:has-text('商品コード') input").fill("Ａ００１");
+    await page.locator(".field:has-text('商品ID') input").fill("Ａ００１");
     await page.getByLabel("商品名（必須）").fill("重複");
     await page.getByRole("button", { name: "保存" }).click();
     await page.locator(".error-box", { hasText: "既に登録" }).waitFor();
@@ -124,7 +124,7 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     await page.setInputFiles('[data-testid="image-input"]', A("fake.jpg"));
     await page.locator(".error-box", { hasText: "読み込めません" }).waitFor();
     check("画像でないファイルはエラー表示", true);
-    await page.locator(".field:has-text('商品コード') input").fill("");
+    await page.locator(".field:has-text('商品ID') input").fill("");
     await page.getByLabel("商品名（必須）").fill("");
     await page.getByRole("button", { name: "保存" }).click();
     check("必須項目のエラーをまとめて表示", (await page.locator(".error-box div").count()) >= 2);
@@ -466,7 +466,7 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     await m.getByLabel("検索").fill("4512345678906");
     await m.getByLabel("検索").press("Enter");
     await m.getByRole("heading", { name: "商品登録" }).waitFor();
-    const scannedCode = await m.locator(".field:has-text('商品コード') input").inputValue();
+    const scannedCode = await m.locator(".field:has-text('商品ID') input").inputValue();
     check("未登録コードは新規登録画面にコードを入れて開く", scannedCode === "4512345678906", scannedCode);
     await m.getByLabel("商品名（必須）").fill("新商品（スキャン登録）");
     await m.getByLabel("初期在庫").fill("８"); // 全角
@@ -636,7 +636,7 @@ async function registerProduct(page, { code, name, category, initial, warning, i
 
     // 在庫CSV：出力
     const stockCsv = await (await page.request.get(`${base}/api/products.csv`)).text();
-    check("在庫CSVを出力できる（BOM付き・見出し）", stockCsv.startsWith("\uFEFF商品コード,商品名,概要,カテゴリ,保管場所,在庫,警告在庫,備考"));
+    check("在庫CSVを出力できる（BOM付き・見出し）", stockCsv.startsWith("\uFEFF商品ID,商品名,概要,カテゴリ,保管場所,在庫,警告在庫,備考"));
 
     // 在庫CSV：エラーのあるファイル → 取り込めない
     await page.getByRole("button", { name: "設定" }).click();
@@ -827,14 +827,14 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     const csvAfter = await (await page.request.get(`${base}/api/histories.csv`)).text();
     check("CSV に移管先・コメントが出る", csvAfter.includes(",移管,,,2,") && csvAfter.includes("製造部 佐藤,,鈴木") && csvAfter.includes(",発注分入荷,鈴木") && csvAfter.includes("入庫,購入,,1,"));
 
-    // ================================================================ 簿外・商品コードの変更履歴・履歴CSVの自動保存
+    // ================================================================ 簿外・商品IDの変更履歴・履歴CSVの自動保存
     await page.getByRole("button", { name: "在庫一覧" }).click();
     await page.getByLabel("カテゴリで絞り込み").selectOption("");
     await page.getByLabel("検索").fill("");
     await page.locator(".product-row", { hasText: "画像なし商品" }).click();
     await page.getByRole("button", { name: "商品を編集" }).click();
     await page.getByLabel("簿外（帳簿に載せていない在庫）").check();
-    await page.locator(".field:has-text('商品コード') input").fill("Z-200");
+    await page.locator(".field:has-text('商品ID') input").fill("Z-200");
     let codeConfirm = "";
     page.once("dialog", (d) => {
       codeConfirm = d.message();
@@ -842,10 +842,10 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     });
     await page.getByRole("button", { name: "保存" }).click();
     await page.locator(".toast", { hasText: "「画像なし商品」を更新しました" }).waitFor();
-    check("コード変更時は確認を出す", codeConfirm.includes("「X100」から「Z-200」"), codeConfirm.split("\n")[0]);
+    check("ID変更時は確認を出す", codeConfirm.includes("「X100」から「Z-200」"), codeConfirm.split("\n")[0]);
     await page.locator(".product-row", { hasText: "画像なし商品" }).click();
     await page.getByTestId("old-codes").waitFor();
-    check("詳細欄に旧コードと簿外を表示", (await page.getByTestId("old-codes").textContent()).includes("X100") && (await page.locator(".stock-panel .tag-label.off-book").isVisible()));
+    check("詳細欄に旧IDと簿外を表示", (await page.getByTestId("old-codes").textContent()).includes("X100") && (await page.locator(".stock-panel .tag-label.off-book").isVisible()));
     await page.locator(".stock-panel").screenshot({ path: `${SHOTS}/34_offbook_oldcode_panel.png` });
 
     await page.getByLabel("簿外で絞り込み").selectOption("only");
@@ -859,15 +859,15 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     check("簿外の絞り込みを記憶する", (await page.getByLabel("簿外で絞り込み").inputValue()) === "exclude");
     await page.getByLabel("簿外で絞り込み").selectOption("all");
 
-    // 旧コードの読み取り（USB リーダー = 検索欄 + Enter）
+    // 旧IDの読み取り（USB リーダー = 検索欄 + Enter）
     await page.locator(".stock-panel .close-sheet").click().catch(() => {});
     await page.getByLabel("検索").fill("X100");
     await page.getByLabel("検索").press("Enter");
-    await page.locator(".toast", { hasText: "「X100」は旧コードです" }).waitFor();
-    check("PC：旧コードを読み取ると現在の商品を選択", (await page.locator(".stock-panel .name").first().textContent()).includes("画像なし商品"));
+    await page.locator(".toast", { hasText: "「X100」は旧IDです" }).waitFor();
+    check("PC：旧IDを読み取ると現在の商品を選択", (await page.locator(".stock-panel .name").first().textContent()).includes("画像なし商品"));
     await s.goto(`${mbase}/m?id=x100`);
-    await s.locator(".m-message.info", { hasText: "旧コードです" }).waitFor();
-    check("スマホ：旧コードで開くと現在のコードを案内し、簿外を表示", (await s.locator(".m-code").textContent()).startsWith("Z-200") && (await s.locator(".m-code .off-book").isVisible()));
+    await s.locator(".m-message.info", { hasText: "旧IDです" }).waitFor();
+    check("スマホ：旧IDで開くと現在のコードを案内し、簿外を表示", (await s.locator(".m-code").textContent()).startsWith("Z-200") && (await s.locator(".m-code .off-book").isVisible()));
     await s.screenshot({ path: `${SHOTS}/28_m_oldcode.png` });
 
     // ================================================================ 受注番号（リストから選択 or 手入力）
@@ -1035,9 +1035,9 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     await page.getByRole("tab", { name: "履歴の修正" }).click();
     await page.locator(".history-table tbody tr", { hasText: "修理用（修正）" }).waitFor();
     check("履歴ページ：履歴の修正の記録を表示", true);
-    await page.getByRole("tab", { name: "コード変更" }).click();
+    await page.getByRole("tab", { name: "ID変更" }).click();
     await page.locator(".history-table tbody tr", { hasText: "Z-200" }).waitFor();
-    check("履歴ページ：コード変更の記録を表示", (await page.locator(".history-table tbody tr", { hasText: "Z-200" }).textContent()).includes("X100"));
+    check("履歴ページ：ID変更の記録を表示", (await page.locator(".history-table tbody tr", { hasText: "Z-200" }).textContent()).includes("X100"));
     await page.getByRole("tab", { name: "操作ログ" }).click();
     await page.getByLabel("キーワード").fill("商品更新");
     await page.waitForTimeout(800);
@@ -1061,7 +1061,7 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     const ym = new Date().toISOString().slice(0, 7);
     const codeCsv = fs.readFileSync(path.join(logDir, `コード変更履歴_${ym}.csv`), "utf8");
     check(
-      "履歴CSV：月別ファイル（入出庫・操作ログ・コード変更）を data/logs に保存",
+      "履歴CSV：月別ファイル（入出庫・操作ログ・ID変更）を data/logs に保存",
       logFiles.includes(`入出庫履歴_${ym}.csv`) && logFiles.includes(`操作ログ_${ym}.csv`) && codeCsv.includes("X100,Z-200,画像なし商品,山田"),
       logFiles.join(","),
     );

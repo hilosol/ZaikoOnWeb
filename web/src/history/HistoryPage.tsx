@@ -40,7 +40,7 @@ const TYPE_OPTIONS: { label: string; value: string }[] = [
 const ALL_USERS = "__all__";
 
 /**
- * 履歴ページ。入出庫・履歴の修正・操作ログ・コード変更を、期間（既定は直近3か月）と条件で絞り込んで見る。
+ * 履歴ページ。入出庫・履歴の修正・操作ログ・ID変更を、期間（既定は直近3か月）と条件で絞り込んで見る。
  * 期間のボタン（3か月・半年・1年・年度）は開始日・終了日の欄に日付を入れるだけ。日付を直接変えれば任意の期間になる。
  */
 export function HistoryPage({ productId }: { productId: number | null }) {
@@ -229,7 +229,7 @@ export function HistoryPage({ productId }: { productId: number | null }) {
               setKeyword(e.target.value);
               setPageIndex(0);
             }}
-            placeholder={kind === "movements" ? "キーワード（商品コード・名前・コメント・移管先・入力者）" : "キーワード"}
+            placeholder={kind === "movements" ? "キーワード（商品ID・名前・コメント・移管先・入力者）" : "キーワード"}
             aria-label="キーワード"
           />
           {kind === "movements" && (
@@ -449,8 +449,8 @@ function CodeTable({ rows }: { rows: CodeChange[] }) {
       <thead>
         <tr>
           <th>日時</th>
-          <th>旧コード</th>
-          <th>新コード</th>
+          <th>旧ID</th>
+          <th>新ID</th>
           <th>商品名</th>
           <th>入力者</th>
         </tr>

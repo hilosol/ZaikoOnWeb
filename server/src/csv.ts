@@ -24,7 +24,7 @@ export function csvText(value: string | null | undefined): string {
 export const CSV_BOM = "﻿";
 
 export function historiesToCsv(histories: readonly History[]): string {
-  const lines = ["日時,商品コード,商品名,区分,理由,紐づけID,数量,処理後在庫,移管先,コメント,入力者,端末IP,取消,履歴ID"];
+  const lines = ["日時,商品ID,商品名,区分,理由,紐づけID,数量,処理後在庫,移管先,コメント,入力者,端末IP,取消,履歴ID"];
   for (const h of histories) {
     lines.push(
       [
@@ -76,9 +76,9 @@ export function historyEditsToCsv(edits: readonly HistoryEdit[]): string {
   return CSV_BOM + lines.join("\r\n") + "\r\n";
 }
 
-/** 履歴ページの「履歴の修正」の CSV（どの商品の履歴か分かるよう商品コード・名前を付ける） */
+/** 履歴ページの「履歴の修正」の CSV（どの商品の履歴か分かるよう商品ID・名前を付ける） */
 export function historyEditRowsToCsv(rows: readonly HistoryEditRow[]): string {
-  const lines = ["日時,履歴ID,商品コード,商品名,区分,項目,修正前,修正後,入力者,端末IP"];
+  const lines = ["日時,履歴ID,商品ID,商品名,区分,項目,修正前,修正後,入力者,端末IP"];
   for (const e of rows) {
     lines.push(
       [
@@ -99,7 +99,7 @@ export function historyEditRowsToCsv(rows: readonly HistoryEditRow[]): string {
 }
 
 export function codeChangesToCsv(changes: readonly CodeChange[]): string {
-  const lines = ["日時,旧コード,新コード,商品名,入力者,端末IP"];
+  const lines = ["日時,旧ID,新ID,商品名,入力者,端末IP"];
   for (const c of changes) {
     lines.push(
       [c.createdAt, csvText(c.oldCode), csvText(c.newCode), csvText(c.productName), csvText(c.userName), csvText(c.clientIp)].join(","),

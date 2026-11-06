@@ -121,8 +121,8 @@ export function InventoryPage() {
   };
 
   /**
-   * 変更前のコード（旧コード）として登録があれば、現在の商品を選ぶ。
-   * コード変更前に印刷したラベルを読んだ場合のため。一覧は現在のコードしか持たないのでサーバーに問い合わせる。
+   * 変更前のコード（旧ID）として登録があれば、現在の商品を選ぶ。
+   * ID変更前に印刷したラベルを読んだ場合のため。一覧は現在のコードしか持たないのでサーバーに問い合わせる。
    */
   const selectByOldCode = async (raw: string): Promise<boolean> => {
     const code = normalizeText(extractCode(raw));
@@ -132,7 +132,7 @@ export function InventoryPage() {
       if (!product || !oldCode) return false;
       setSelectedId(product.id);
       setTab("products");
-      app.toast(`「${oldCode}」は旧コードです。現在のコード「${product.code}」の商品を選択しました`, "info");
+      app.toast(`「${oldCode}」は旧IDです。現在のID「${product.code}」の商品を選択しました`, "info");
       return true;
     } catch {
       return false;
@@ -141,7 +141,7 @@ export function InventoryPage() {
 
   /**
    * 検索欄で Enter（USB バーコードリーダーはキーボードとしてコード + Enter を送る）。
-   * コード（QR の URL も可）が一致すればその商品を選ぶ。旧コードなら現在の商品を選ぶ。
+   * コード（QR の URL も可）が一致すればその商品を選ぶ。旧IDなら現在の商品を選ぶ。
    * どれにも当たらず、コードらしい文字列（英数字・記号のみ）なら新規登録を提案する。
    */
   const onSearchEnter = async () => {
@@ -161,7 +161,7 @@ export function InventoryPage() {
       setKeyword("");
       return;
     }
-    if (looksLikeCode(code) && window.confirm(`コード「${normalizeText(code)}」の商品は登録されていません。\nこのコードで新しく登録しますか？`)) {
+    if (looksLikeCode(code) && window.confirm(`ID「${normalizeText(code)}」の商品は登録されていません。\nこのIDで新しく登録しますか？`)) {
       navigate({ page: "new", code: normalizeText(code) });
       return;
     }
@@ -199,7 +199,7 @@ export function InventoryPage() {
                   void onSearchEnter();
                 }
               }}
-              placeholder="コード・商品名で検索"
+              placeholder="ID・商品名で検索"
               title="バーコードリーダーで読み取って Enter でも探せます"
               aria-label="検索"
               enterKeyHint="search"
@@ -263,7 +263,7 @@ export function InventoryPage() {
           <div className="product-list" role="list">
             <div className="product-row header" aria-hidden="true">
               <span />
-              <span>商品コード / 商品名</span>
+              <span>商品ID / 商品名</span>
               <span>カテゴリ</span>
               <span className="num">在庫</span>
               <span className="num">警告</span>
@@ -445,7 +445,7 @@ function StockPanel({
   const [comment, setComment] = useState("");
   const [codeChanges, setCodeChanges] = useState<CodeChange[]>([]);
 
-  // コードが変わったら旧コードの一覧も取り直す
+  // コードが変わったら旧IDの一覧も取り直す
   useEffect(() => {
     let cancelled = false;
     api
@@ -523,7 +523,7 @@ function StockPanel({
           </div>
           {codeChanges.length > 0 && (
             <div className="small old-code-line" data-testid="old-codes">
-              <span className="tag-label">旧コード</span>
+              <span className="tag-label">旧ID</span>
               {codeChanges.map((c) => `${c.oldCode}（${shortDateTime(c.createdAt).slice(0, 5)}変更）`).join("、")}
             </div>
           )}

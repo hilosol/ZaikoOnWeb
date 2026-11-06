@@ -274,7 +274,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.get("/api/products", async (req) => service.searchProducts((req.query as { q?: string }).q));
-  /** oldCode: 変更前のコードで見つかった場合の旧コード（画面で「コードが変わった」と知らせる） */
+  /** oldCode: 変更前のコードで見つかった場合の旧ID（画面で「コードが変わった」と知らせる） */
   app.get("/api/products/by-code/:code", async (req) => service.lookupCode((req.params as { code: string }).code));
   app.get("/api/products/:id/code-changes", async (req) => service.codeChanges(idOf(req)));
   app.get("/api/products/:id", async (req) => service.getProduct(idOf(req)));
