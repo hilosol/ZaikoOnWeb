@@ -12,6 +12,7 @@ const SMTP_PORT = 2526;
 const ROOT = path.resolve(__dirname, "..");
 const DATA = path.join(os.tmpdir(), "zaiko-e2e-data");
 const UPDATE_ROOT = path.join(os.tmpdir(), "zaiko-e2e-update-root");
+const EXTRA_BACKUP = path.join(os.tmpdir(), "zaiko-e2e-extra-backup");
 const SHOTS = path.join(__dirname, "shots");
 const A = (f) => path.join(__dirname, "assets", f);
 const PORT = 8090;
@@ -51,6 +52,7 @@ async function registerProduct(page, { code, name, category, initial, warning, i
 (async () => {
   fs.rmSync(DATA, { recursive: true, force: true });
   fs.rmSync(UPDATE_ROOT, { recursive: true, force: true });
+  fs.rmSync(EXTRA_BACKUP, { recursive: true, force: true });
   fs.mkdirSync(path.join(UPDATE_ROOT, ".git"), { recursive: true });
   fs.rmSync(SHOTS, { recursive: true, force: true });
   fs.mkdirSync(SHOTS, { recursive: true });
@@ -450,7 +452,7 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     await page.locator("section.mail-settings").waitFor();
     check("設定：操作ログの表は置かない（履歴ページの「操作ログ」で見る）", (await page.getByTestId("audit-log").count()) === 0);
     const menu = page.getByRole("navigation", { name: "設定の項目" });
-    check("設定：上に項目のメニュー（サーバーPCの画面ではプログラムの更新も）", (await menu.getByRole("button").allTextContents()).join(",") === "入力者,端末,在庫データ（CSV）,紐づけIDリスト,履歴のCSV保存,メール通知,サーバーPC IP,プログラムの更新");
+    check("設定：上に項目のメニュー（サーバーPCの画面ではプログラムの更新も）", (await menu.getByRole("button").allTextContents()).join(",") === "入力者,端末,在庫データ（CSV）,紐づけIDリスト,履歴のCSV保存,バックアップ,メール通知,サーバーPC IP,プログラムの更新");
     await menu.getByRole("button", { name: "メール通知" }).click();
     await page.waitForTimeout(800);
     const mailTop = await page.locator("#settings-mail").evaluate((el) => el.getBoundingClientRect().top);
@@ -458,6 +460,29 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     check("設定：メニューを押すとその項目へ移動（メニューに隠れない）", mailTop >= menuBottom && mailTop < menuBottom + 40, `${mailTop} / ${menuBottom}`);
     await page.screenshot({ path: `${SHOTS}/06b_settings_menu.png` });
     await page.evaluate(() => window.scrollTo(0, 0));
+
+    // バックアップ
+    const bk = page.getByRole("region", { name: "バックアップ" });
+    await bk.getByTestId("backup-place-サーバーPC内").waitFor();
+    check("バックアップ：既定は30日分・サーバーPC内に保存済み",
+      (await bk.getByLabel("残す期間").inputValue()) === "30d" && (await bk.getByTestId("backup-place-サーバーPC内").textContent()).includes("成功"));
+    await bk.getByLabel("残す期間").selectOption("unlimited");
+    check("バックアップ：無制限を選ぶと注意書き", await bk.getByTestId("unlimited-note").isVisible());
+    await bk.getByLabel("追加の保存先").fill("\\\\nas\\share");
+    await bk.getByRole("button", { name: "書き込みテスト" }).click();
+    await bk.locator(".error-box", { hasText: "ネットワークの場所" }).waitFor();
+    check("バックアップ：NAS（\\\\…）は理由を示して受け付けない", true);
+    await bk.getByLabel("追加の保存先").fill(EXTRA_BACKUP);
+    await bk.getByRole("button", { name: "書き込みテスト" }).click();
+    check("バックアップ：書き込みテスト", (await bk.getByTestId("backup-test-result").textContent()).includes("書き込めました"));
+    await bk.getByRole("button", { name: "保存" }).click();
+    await bk.getByTestId("backup-place-追加の保存先").waitFor();
+    check("バックアップ：保存先を指定するとすぐにデータベースと写真をコピー",
+      (await bk.getByTestId("backup-place-追加の保存先").textContent()).includes("成功") &&
+        fs.readdirSync(path.join(EXTRA_BACKUP, "db")).length === 1 && fs.readdirSync(path.join(EXTRA_BACKUP, "images")).length >= 1,
+      fs.readdirSync(path.join(EXTRA_BACKUP, "images")).length + "枚");
+    await bk.screenshot({ path: `${SHOTS}/06c_backup.png` });
+    check("バックアップ：失敗していなければ警告は出ない", (await page.locator(".backup-warning").count()) === 0);
 
     // プログラムの更新（E2E はサーバーと同じPCから開くので「サーバーPCの画面」）
     const upd = page.getByRole("region", { name: "プログラムの更新" });

@@ -427,6 +427,53 @@ export interface HistorySearchResult<T> {
   summary?: { IN: number; OUT: number; TRANSFER: number };
 }
 
+/** バックアップを残す期間 */
+export type BackupRetention = "7d" | "30d" | "90d" | "1y" | "generations" | "unlimited";
+
+export const BackupRetentionLabels: Record<BackupRetention, string> = {
+  "7d": "7日分",
+  "30d": "30日分",
+  "90d": "90日分",
+  "1y": "1年分",
+  generations: "世代管理（直近30日は毎日・12か月は月1回・それより前は年1回）",
+  unlimited: "無制限（消さない）",
+};
+
+export interface BackupSettings {
+  retention: BackupRetention;
+  /** 追加の保存先（外付けドライブ・USB 等のフォルダ。"" = サーバーPC内のみ） */
+  extraDir: string;
+}
+
+export const DefaultBackupSettings: BackupSettings = { retention: "30d", extraDir: "" };
+
+/** 保存先ごとの状態 */
+export interface BackupPlaceStatus {
+  /** フォルダのフルパス */
+  dir: string;
+  /** 最後に試した日時・結果 */
+  lastAttemptAt: string | null;
+  lastOk: boolean | null;
+  lastMessage: string;
+  /** 最後に成功した日時 */
+  lastSuccessAt: string | null;
+  /** バックアップの件数・合計サイズ（バイト）。読めなければ null */
+  count: number | null;
+  totalBytes: number | null;
+  /** 保存先ドライブの空き容量（バイト）。取得できなければ null */
+  freeBytes: number | null;
+}
+
+export interface BackupView {
+  settings: BackupSettings;
+  local: BackupPlaceStatus;
+  /** 追加の保存先を設定していなければ null */
+  extra: BackupPlaceStatus | null;
+}
+
+/** 空き容量がこれを下回ったら警告する */
+export const BACKUP_LOW_FREE_BYTES = 1024 * 1024 * 1024;
+
 /** プログラムの更新の状態（サーバーPCの画面にだけ返す） */
 export interface UpdateStatus {
   /** GitHub とつながったフォルダか（setup-github.bat 済み） */

@@ -5,6 +5,7 @@ import { api, ApiError, errorMessage } from "../api";
 import { shortDateTime } from "../components/common";
 import { useApp } from "../context";
 import { UpdateSection, useUpdateStatus } from "../update";
+import { BackupSection } from "./BackupSection";
 import { DevicesSection } from "./DevicesSection";
 import { LogExportSection } from "./LogExportSection";
 import { MailSettingsSection } from "./MailSettingsSection";
@@ -47,6 +48,7 @@ const SECTIONS: SettingsSectionDef[] = [
   { id: "settings-stock-csv", label: "在庫データ（CSV）", Component: StockCsvSection },
   { id: "settings-order-list", label: "紐づけIDリスト", Component: OrderListSection },
   { id: "settings-log-export", label: "履歴のCSV保存", Component: LogExportSection },
+  { id: "settings-backup", label: "バックアップ", Component: BackupSection },
   { id: "settings-mail", label: "メール通知", Component: MailSettingsSection },
   { id: "settings-access", label: "サーバーPC IP", Component: AccessSection },
 ];

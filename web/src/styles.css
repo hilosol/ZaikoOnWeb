@@ -2781,3 +2781,61 @@ button.product-image.zoomable:focus-visible {
   padding-left: 20px;
   font-size: 14px;
 }
+
+/* ------------------------------------------------------------ バックアップ */
+
+.backup-form {
+  margin: 8px 0 12px;
+}
+
+.backup-places {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin: 8px 0;
+}
+
+.backup-place {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  background: var(--panel);
+}
+
+.backup-place h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+.warning-note {
+  margin: 4px 0 8px;
+  padding: 8px 10px;
+  border-left: 3px solid #d4a72c;
+  background: #fff8c5;
+  font-size: 13px;
+}
+
+.ok-box {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #dafbe1;
+  color: #116329;
+  font-size: 14px;
+}
+
+.danger-text {
+  color: var(--danger);
+}
+
+.backup-warning {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: var(--low-bg);
+  border-bottom: 1px solid #f1aeb5;
+  color: var(--danger);
+  font-size: 14px;
+}

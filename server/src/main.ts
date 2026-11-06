@@ -14,6 +14,7 @@ import { CsvLogExporter } from "./logExport.js";
 import { lanAddresses } from "./network.js";
 import { OrderNumberList } from "./orderNumbers.js";
 import { Updater } from "./updater.js";
+import { BackupService } from "./backup.js";
 import { APP_VERSION } from "./version.js";
 
 /**
@@ -28,7 +29,6 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.ZAIKO_PORT ?? 28003);
 const dataDir = path.resolve(process.env.ZAIKO_DATA_DIR ?? path.join(here, "..", "data"));
 const webDir = path.join(here, "web");
-const BACKUP_KEEP_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -63,28 +63,30 @@ const mail = new MailNotifier({
   version: APP_VERSION,
 });
 const logExporter = new CsvLogExporter(service, path.join(dataDir, "logs"), systemClock);
+const backup = new BackupService({
+  dataDir,
+  store: settingsStore,
+  clock: systemClock,
+  auditor: service,
+  backupDatabase: (dest) => backupDatabase(db, dest),
+});
 const updater = new Updater({ root: path.resolve(process.env.ZAIKO_UPDATE_ROOT ?? path.join(here, "..")), dataDir, clock: systemClock });
-const app = buildApp({ service, images, mail, general, updater: isDemo ? undefined : updater, logExporter, orderList, demo: isDemo, webDir: fs.existsSync(webDir) ? webDir : undefined, logger: true });
+const app = buildApp({ service, images, mail, general, backup, updater: isDemo ? undefined : updater, logExporter, orderList, demo: isDemo, webDir: fs.existsSync(webDir) ? webDir : undefined, logger: true });
 
-/** 1日1回 DB をバックアップし、古いものを削除する（画像フォルダは対象外。README 参照）。 */
+/** 1時間ごとに呼ぶ：DB のバックアップ（今日の分が無ければ作成・古い分を削除・追加の保存先へコピー） */
 function dailyBackup(): void {
   try {
-    const dir = path.join(dataDir, "backup");
-    fs.mkdirSync(dir, { recursive: true });
-    const d = new Date();
-    const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
-    const dest = path.join(dir, `zaiko_${stamp}.db`);
-    if (!fs.existsSync(dest)) backupDatabase(db, dest);
-
-    for (const name of fs.readdirSync(dir)) {
-      const full = path.join(dir, name);
-      if (/^zaiko_\d{8}\.db$/.test(name) && Date.now() - fs.statSync(full).mtimeMs > BACKUP_KEEP_DAYS * DAY_MS) {
-        fs.rmSync(full, { force: true });
-      }
+    const view = backup.run();
+    for (const place of [view.local, view.extra]) {
+      if (place && place.lastOk === false) app.log.warn(`バックアップに失敗しました（${place.dir}）: ${place.lastMessage}`);
     }
-    images.cleanupUploads(DAY_MS);
   } catch (error) {
     app.log.error(error, "バックアップに失敗しました");
+  }
+  try {
+    images.cleanupUploads(DAY_MS);
+  } catch (error) {
+    app.log.error(error, "一時ファイルの削除に失敗しました");
   }
 }
 

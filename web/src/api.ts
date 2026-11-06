@@ -6,6 +6,8 @@ import type {
   History,
   MailSendResult,
   MailSettingsRequest,
+  BackupSettings,
+  BackupView,
   GeneralSettings,
   UpdateStatusResponse,
   MailSettingsResponse,
@@ -111,6 +113,11 @@ export const api = {
 
   logExport: () => request<LogExportStatus>("GET", "/api/log-export"),
   runLogExport: () => request<LogExportStatus>("POST", "/api/log-export/run", {}),
+  backup: () => request<BackupView>("GET", "/api/backup"),
+  saveBackupSettings: (settings: Partial<BackupSettings>, userName: string) =>
+    request<BackupView>("PUT", "/api/backup/settings", { ...settings, userName }),
+  testBackupDir: (extraDir: string) => request<{ ok: boolean; message: string }>("POST", "/api/backup/test", { extraDir }),
+  runBackup: () => request<BackupView>("POST", "/api/backup/run", {}),
   updateStatus: () => request<UpdateStatusResponse>("GET", "/api/update/status"),
   updateCheck: () => request<UpdateStatusResponse>("POST", "/api/update/check"),
   updateRun: () => request<UpdateStatusResponse>("POST", "/api/update/run", {}),

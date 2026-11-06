@@ -10,6 +10,7 @@ import { HistoryPage } from "./history/HistoryPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { DemoBadge, useDemoFlag } from "./demo";
 import { UpdateBanner } from "./update";
+import { BackupWarning } from "./pages/BackupSection";
 import { APP_VERSION } from "./version";
 
 interface Toast {
@@ -128,6 +129,12 @@ export function App() {
       </header>
 
       <UpdateBanner />
+      <BackupWarning
+        onOpen={() => {
+          navigate({ page: "settings" });
+          window.setTimeout(() => document.getElementById("settings-backup")?.scrollIntoView(), 300);
+        }}
+      />
       <main className="app-main">
         {route.page === "inventory" && <InventoryPage />}
         {route.page === "new" && <ProductEditPage key={`new-${route.code}`} productId={null} initialCode={route.code} />}

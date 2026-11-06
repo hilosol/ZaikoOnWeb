@@ -20,6 +20,7 @@ import type { OrderNumberList } from "./orderNumbers.js";
 import { isDeviceId, newDeviceId } from "./devices.js";
 import { isLanAddress, isSelfAddress, lanAddresses, normalizeIp } from "./network.js";
 import type { Updater } from "./updater.js";
+import type { BackupService } from "./backup.js";
 import { APP_VERSION } from "./version.js";
 import type { GeneralSettingsService } from "./generalSettings.js";
 
@@ -32,6 +33,8 @@ export interface AppOptions {
   demo?: boolean;
   /** 受注番号リスト（未指定なら候補は最近入力した番号のみ） */
   orderList?: Pick<OrderNumberList, "list">;
+  /** バックアップ（未指定なら関連 API は 404） */
+  backup?: Pick<BackupService, "view" | "saveSettings" | "testDir" | "run">;
   /** プログラムの更新（未指定なら関連 API は「使えない」と返す） */
   updater?: Pick<Updater, "status" | "check" | "start" | "saveToken">;
   /** テスト用：このPC自身からの接続かの判定を差し替える */
@@ -174,6 +177,24 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const port = req.socket.localPort;
     return { urls: lanAddresses().map((ip) => `http://${ip}:${port}`) };
   });
+
+  // ------------------------------------------------------------ バックアップ
+
+  const backup = options.backup;
+  if (backup) {
+    app.get("/api/backup", async () => backup.view());
+    app.put("/api/backup/settings", async (req) => {
+      const body = bodyOf(req);
+      const view = backup.saveSettings(body, actorOf(req));
+      // 保存先を変えたらすぐにコピーして、結果を見せる
+      return body.extraDir !== undefined ? backup.run() : view;
+    });
+    app.post("/api/backup/test", async (req) => backup.testDir(bodyOf(req).extraDir));
+    app.post("/api/backup/run", async (req) => {
+      bodyOf(req);
+      return backup.run();
+    });
+  }
 
   // ------------------------------------------------------------ プログラムの更新（このPCの画面からだけ）
 
