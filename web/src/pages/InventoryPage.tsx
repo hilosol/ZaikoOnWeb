@@ -606,7 +606,12 @@ function StockPanel({
 
       {recent.length > 0 && (
         <div className="recent">
-          <div className="muted small">この商品の最近の履歴</div>
+          <div className="recent-head">
+            <span className="muted small">この商品の最近の履歴</span>
+            <button type="button" className="link-button small" onClick={() => navigate({ page: "history", productId: product.id })}>
+              すべての履歴を見る →
+            </button>
+          </div>
           <HistoryList
             histories={recent}
             compact

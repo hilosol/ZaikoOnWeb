@@ -155,7 +155,8 @@ export function OrderNoField({
           </button>
         )}
       </div>
-      {value.trim() && !open && (
+      {/* 入力中も表示する（入力欄から離れたときに表示が増えて下の行がずれ、クリックがずれるのを防ぐ。候補の一覧はこの上に重なる） */}
+      {value.trim() && (
         <div className="order-hint small" data-testid="order-hint">
           {selected ? selected.name || "（案件名なし）" : "リストに無い番号です（そのまま記録します）"}
         </div>

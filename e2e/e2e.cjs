@@ -783,13 +783,13 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     await page.locator(".stock-panel .history-list li", { hasText: "数量まちがい用" }).first().click();
     const dlg = page.getByRole("dialog", { name: "履歴の詳細・修正" });
     await dlg.waitFor();
+    check("履歴の修正：直せるのはコメントだけ（受注番号などの入力欄は無い）", (await dlg.locator("input").count()) === 2 && !(await dlg.getByRole("combobox").count()));
     await dlg.getByLabel("コメント").fill("修理用（修正）");
-    await dlg.getByRole("combobox", { name: "受注番号" }).fill("YHO-26002");
-    await dlg.getByRole("button", { name: "修正を保存" }).click();
-    await page.locator(".toast", { hasText: "履歴を修正しました" }).waitFor();
+    await dlg.getByRole("button", { name: "コメントを保存" }).click();
+    await page.locator(".toast", { hasText: "コメントを修正しました" }).waitFor();
     await dlg.getByTestId("history-edits").waitFor();
     const editRows = await dlg.locator("[data-testid=history-edits] tbody tr").allTextContents();
-    check("履歴の修正：コメント・受注番号を直し、修正前→修正後を修正履歴に残す", editRows.length === 2 && editRows.some((r) => r.includes("数量まちがい用") && r.includes("修理用（修正）")), editRows.join(" | "));
+    check("履歴の修正：コメントを直し、修正前→修正後を修正履歴に残す", editRows.length === 1 && editRows[0].includes("数量まちがい用") && editRows[0].includes("修理用（修正）"), editRows.join(" | "));
     await dlg.getByLabel("取消の理由").fill("数量の入力間違い");
     page.once("dialog", (d) => d.accept());
     await dlg.getByRole("button", { name: "この履歴を取り消す" }).click();
@@ -826,6 +826,56 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     const devHist = await dp.evaluate(async () => (await (await fetch("/api/histories?limit=1")).json())[0]);
     check("スマホ：名前を選ばずに出庫しても、端末に紐づいた人で記録", devHist.userName === "佐藤" && devHist.deviceId === myDev, `${devHist.userName} ${String(devHist.deviceId).slice(0, 8)}`);
     await devCtx.close();
+
+    // ================================================================ 履歴ページ
+    await page.getByRole("button", { name: "在庫一覧" }).click();
+    await page.locator(".product-row", { hasText: "青い箱" }).click();
+    await page.locator(".stock-panel").getByRole("button", { name: "すべての履歴を見る →" }).click();
+    await page.getByTestId("history-table").waitFor();
+    check("履歴ページ：商品パネルから、その商品の履歴だけを表示", (await page.locator(".history-product-filter").textContent()).includes("青い箱") &&
+      (await page.locator("[data-testid=history-table] tbody tr").allTextContents()).every((t) => t.includes("青い箱")));
+    check("履歴ページ：既定は直近3か月（ボタンが選択状態）", await page.getByRole("button", { name: "直近3か月" }).evaluate((b) => b.classList.contains("active")));
+    const from3m = await page.getByLabel("開始日").inputValue();
+    await page.getByRole("button", { name: "半年" }).click();
+    const from6m = await page.getByLabel("開始日").inputValue();
+    check("履歴ページ：「半年」を押すと開始日に反映", from6m < from3m && (await page.getByLabel("終了日").inputValue()) === new Date().toLocaleDateString("sv-SE"), `${from3m} → ${from6m}`);
+    const fy = await page.getByLabel("年度").locator("option").nth(1).getAttribute("value");
+    await page.getByLabel("年度").selectOption(fy);
+    check("履歴ページ：年度を選ぶと4月1日〜翌3月31日", (await page.getByLabel("開始日").inputValue()) === `${fy}-04-01` && (await page.getByLabel("終了日").inputValue()) === `${Number(fy) + 1}-03-31`);
+    await page.getByLabel("開始日").fill("2030-01-01");
+    await page.locator(".history-page .error-box", { hasText: "開始日が終了日より後" }).waitFor();
+    check("履歴ページ：期間の入力ミスを表示", true);
+    await page.getByRole("button", { name: "直近3か月" }).click();
+    await page.getByRole("combobox", { name: "受注番号" }).fill("YHO-26002");
+    await page.locator(".history-page").getByLabel("区分").selectOption("OUT");
+    await page.waitForFunction(() => document.querySelector("[data-testid=history-total]")?.textContent?.match(/^\d+ 件$/));
+    await page.waitForTimeout(500);
+    const sum = await page.getByTestId("history-summary").textContent();
+    const outRows = await page.locator("[data-testid=history-table] tbody tr").allTextContents();
+    check("履歴ページ：受注番号・区分で絞り込み、合計は取消分を除く", outRows.length >= 1 && outRows.every((t) => t.includes("出庫") && t.includes("YHO-26002")) && sum.includes("出庫 1"), `${outRows.length}行 ${sum}`);
+    await page.screenshot({ path: `${SHOTS}/45_history_page.png`, fullPage: true });
+    const csvHref = await page.getByRole("link", { name: "この条件でCSV出力" }).getAttribute("href");
+    const pageCsv = await (await page.request.get(`${base}${csvHref}`)).text();
+    check("履歴ページ：同じ条件でCSV出力", pageCsv.includes("受注番号") && pageCsv.split("\r\n").filter(Boolean).length === outRows.length + 1, `${pageCsv.split("\r\n").filter(Boolean).length - 1}行`);
+    // 受注番号を入力した直後（入力欄にカーソルがある状態）でも、1回のクリックで開けること
+    await page.waitForLoadState("networkidle");
+    await page.locator("[data-testid=history-table] tbody tr").first().click();
+    await page.getByRole("dialog", { name: "履歴の詳細・修正" }).waitFor();
+    check("履歴ページ：行をクリックで詳細・修正を開く", true);
+    await page.getByRole("dialog", { name: "履歴の詳細・修正" }).getByRole("button", { name: "閉じる" }).click();
+    await page.getByRole("button", { name: "商品の絞り込みを解除" }).click();
+    await page.getByRole("tab", { name: "履歴の修正" }).click();
+    await page.locator(".history-table tbody tr", { hasText: "修理用（修正）" }).waitFor();
+    check("履歴ページ：履歴の修正の記録を表示", true);
+    await page.getByRole("tab", { name: "コード変更" }).click();
+    await page.locator(".history-table tbody tr", { hasText: "Z-200" }).waitFor();
+    check("履歴ページ：コード変更の記録を表示", (await page.locator(".history-table tbody tr", { hasText: "Z-200" }).textContent()).includes("X100"));
+    await page.getByRole("tab", { name: "操作ログ" }).click();
+    await page.getByLabel("キーワード").fill("商品更新");
+    await page.waitForTimeout(800);
+    const auditRows = await page.locator(".history-table tbody tr").allTextContents();
+    check("履歴ページ：操作ログを操作の種類で検索", auditRows.length >= 1 && auditRows.every((t) => t.includes("商品更新")), `${auditRows.length}行`);
+    await page.screenshot({ path: `${SHOTS}/46_history_audit.png` });
 
     // 設定画面にリストの状態
     await page.getByRole("button", { name: "設定" }).click();

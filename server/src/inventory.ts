@@ -27,6 +27,8 @@ import { mapColumns, parseCsv, unescapeCsvText, type ProductField } from "./prod
 import { normalizeSuppliers, sameSuppliers, SupplierRepository } from "./suppliers.js";
 import { isIP } from "node:net";
 import { DeviceRepository, isDeviceId } from "./devices.js";
+import { HistorySearch, parseHistoryQuery, type ParsedHistoryQuery } from "./historySearch.js";
+import { toAudit, toCodeChange, toHistory, toHistoryEdit, type Row } from "./rows.js";
 import { normalizeIp } from "./network.js";
 import { isIntegerInRange, matchesKeyword, normalizeText, searchKey, trimText } from "./text.js";
 
@@ -52,7 +54,6 @@ export interface Actor {
   deviceId?: string;
 }
 
-type Row = Record<string, unknown>;
 
 const toProduct = (r: Row, suppliers: Product["suppliers"] = []): Product => ({
   id: Number(r.id),
@@ -72,59 +73,11 @@ const toProduct = (r: Row, suppliers: Product["suppliers"] = []): Product => ({
   updatedAt: String(r.updated_at),
 });
 
-const toHistory = (r: Row): History => ({
-  id: Number(r.id),
-  productId: r.product_id == null ? null : Number(r.product_id),
-  productCode: String(r.product_code),
-  productName: String(r.product_name),
-  type: String(r.type) as MovementType,
-  quantity: Number(r.quantity),
-  stockAfter: Number(r.stock_after),
-  destination: r.destination == null ? null : String(r.destination),
-  comment: r.comment == null ? null : String(r.comment),
-  reason: r.reason == null ? null : String(r.reason),
-  orderNo: r.order_no == null ? null : String(r.order_no),
-  cancelOf: r.cancel_of == null ? null : Number(r.cancel_of),
-  canceledBy: r.canceled_by == null ? null : Number(r.canceled_by),
-  deviceId: r.device_id == null ? null : String(r.device_id),
-  userName: String(r.user_name),
-  clientIp: String(r.client_ip),
-  createdAt: String(r.created_at),
-});
 
-const toHistoryEdit = (r: Row): HistoryEdit => ({
-  id: Number(r.id),
-  historyId: Number(r.history_id),
-  field: String(r.field),
-  before: String(r.before),
-  after: String(r.after),
-  userName: String(r.user_name),
-  clientIp: String(r.client_ip),
-  createdAt: String(r.created_at),
-});
 
-const toCodeChange = (r: Row): CodeChange => ({
-  id: Number(r.id),
-  productId: Number(r.product_id),
-  oldCode: String(r.old_code),
-  newCode: String(r.new_code),
-  productName: String(r.product_name),
-  userName: String(r.user_name),
-  clientIp: String(r.client_ip),
-  createdAt: String(r.created_at),
-});
 
 const toUser = (r: Row, ips: UserIp[] = []): User => ({ id: Number(r.id), name: String(r.name), active: Number(r.is_active) === 1, ips });
 
-const toAudit = (r: Row): AuditLog => ({
-  id: Number(r.id),
-  action: String(r.action) as AuditLog["action"],
-  target: String(r.target),
-  detail: String(r.detail),
-  userName: String(r.user_name),
-  clientIp: String(r.client_ip),
-  createdAt: String(r.created_at),
-});
 
 const isUniqueViolation = (e: unknown) => e instanceof Error && /UNIQUE constraint failed/i.test(e.message);
 
@@ -207,6 +160,7 @@ export function normalizeProductInput(input: Partial<ProductInput> | null | unde
 export class InventoryService {
   private readonly suppliers: SupplierRepository;
   private readonly devices: DeviceRepository;
+  private readonly historySearch: HistorySearch;
 
   constructor(
     private readonly db: DatabaseSync,
@@ -216,6 +170,13 @@ export class InventoryService {
   ) {
     this.suppliers = new SupplierRepository(db);
     this.devices = new DeviceRepository(db);
+    this.historySearch = new HistorySearch(db);
+  }
+
+  /** 履歴ページの検索（raw は URL のクエリ。検証して日本語のエラーにする） */
+  searchHistories(raw: Record<string, unknown>, forCsv = false): { query: ParsedHistoryQuery; result: ReturnType<HistorySearch["search"]> } {
+    const query = parseHistoryQuery(raw, forCsv);
+    return { query, result: this.historySearch.search(query) };
   }
 
   /** DB の行を Product にする（購入元はまとめて1回で読む） */
@@ -1038,47 +999,23 @@ export class InventoryService {
   }
 
   /**
-   * 履歴の受注番号・コメント・移管先・理由を直す。変えた項目ごとに「修正前 → 修正後」を記録する。
-   * 数量・区分は直せない（在庫と、その後の履歴の処理後在庫が合わなくなるため）。取消して入力し直す。
-   * 省略した項目は変えない。空文字は「消す」（移管先は必須なので不可）。
+   * 履歴のコメントを直す（直せるのはコメントだけ）。修正前 → 修正後を修正履歴に記録する。
+   * 数量・区分の間違いは取消して入力し直す。受注番号・移管先・理由は記録どおりに残す。
+   * 空文字はコメントを消す。変わっていなければ何も記録しない。
    */
   editHistory(id: number, change: Record<string, unknown>, actor: Actor): History {
     const userName = this.requireUser(actor);
+    const other = Object.keys(change).filter((k) => k !== "comment");
+    if (other.length > 0) throw new ValidationError("履歴で直せるのはコメントだけです。");
+    if (typeof change.comment !== "string") throw new ValidationError("コメントを入力してください。");
+    const after = trimText(change.comment).replace(/\s*[\r\n]+\s*/g, " ");
+    if (after.length > Rules.commentMaxLength) throw new ValidationError(`コメントは${Rules.commentMaxLength}文字以内で入力してください。`);
     return transaction(this.db, () => {
       const h = this.getHistory(id);
       if (h.type === "CANCEL") throw new ValidationError("取消の履歴は修正できません。");
-      const updates: { field: string; column: string; before: string; after: string | null }[] = [];
-
-      if (change.orderNo !== undefined) {
-        const after = this.normalizeOrderNo(change.orderNo);
-        if ((h.orderNo ?? "") !== (after ?? "")) updates.push({ field: "orderNo", column: "order_no", before: h.orderNo ?? "", after });
-      }
-      if (change.comment !== undefined) {
-        if (typeof change.comment !== "string") throw new ValidationError("コメントの形式が正しくありません。");
-        const after = trimText(change.comment).replace(/\s*[\r\n]+\s*/g, " ");
-        if (after.length > Rules.commentMaxLength) throw new ValidationError(`コメントは${Rules.commentMaxLength}文字以内で入力してください。`);
-        if ((h.comment ?? "") !== after) updates.push({ field: "comment", column: "comment", before: h.comment ?? "", after: after || null });
-      }
-      if (change.destination !== undefined) {
-        if (h.type !== "TRANSFER") throw new ValidationError("移管先は移管の履歴だけ修正できます。");
-        const after = trimText(change.destination);
-        if (!after) throw new ValidationError("移管先（人・部署）を入力してください。");
-        if (after.length > Rules.destinationMaxLength) throw new ValidationError(`移管先は${Rules.destinationMaxLength}文字以内で入力してください。`);
-        if (h.destination !== after) updates.push({ field: "destination", column: "destination", before: h.destination ?? "", after });
-      }
-      if (change.reason !== undefined) {
-        if (h.type !== "IN") throw new ValidationError("理由は入庫の履歴だけ修正できます。");
-        const after = typeof change.reason === "string" ? change.reason : null;
-        if (after !== "" && !(InReasons as readonly string[]).includes(after ?? "")) {
-          throw new ValidationError(`入庫の理由は ${InReasons.join("・")} から選んでください。`);
-        }
-        if ((h.reason ?? "") !== after) updates.push({ field: "reason", column: "reason", before: h.reason ?? "", after: after || null });
-      }
-
-      for (const u of updates) {
-        // 列名は上の固定値のみ（利用者の入力は値として渡す）
-        this.db.prepare(`UPDATE histories SET ${u.column} = ? WHERE id = ?`).run(u.after, id);
-        this.insertHistoryEdit(id, u.field, u.before, u.after ?? "", { ...actor, userName });
+      if ((h.comment ?? "") !== after) {
+        this.db.prepare("UPDATE histories SET comment = ? WHERE id = ?").run(after || null, id);
+        this.insertHistoryEdit(id, "comment", h.comment ?? "", after, { ...actor, userName });
       }
       return this.getHistory(id);
     });

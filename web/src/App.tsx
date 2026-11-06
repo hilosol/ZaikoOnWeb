@@ -6,6 +6,7 @@ import { AppContext, type AppContextValue, type ToastKind } from "./context";
 import { navigate, useLocalStorage, useRoute } from "./hooks";
 import { InventoryPage } from "./pages/InventoryPage";
 import { ProductEditPage } from "./pages/ProductEditPage";
+import { HistoryPage } from "./history/HistoryPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { APP_VERSION } from "./version";
 
@@ -100,6 +101,9 @@ export function App() {
           <button type="button" className={route.page === "new" ? "active" : ""} onClick={() => navigate({ page: "new", code: "" })}>
             商品登録
           </button>
+          <button type="button" className={route.page === "history" ? "active" : ""} onClick={() => navigate({ page: "history" })}>
+            履歴
+          </button>
           <button type="button" className={route.page === "settings" ? "active" : ""} onClick={() => navigate({ page: "settings" })}>
             設定
           </button>
@@ -123,6 +127,7 @@ export function App() {
         {route.page === "new" && <ProductEditPage key={`new-${route.code}`} productId={null} initialCode={route.code} />}
         {route.page === "edit" && <ProductEditPage key={`edit-${route.id}`} productId={route.id} initialCode="" />}
         {route.page === "settings" && <SettingsPage />}
+        {route.page === "history" && <HistoryPage key={route.productId ?? 0} productId={route.productId ?? null} />}
       </main>
 
       {pickerOpen && (

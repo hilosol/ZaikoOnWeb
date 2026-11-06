@@ -6,6 +6,7 @@ import {
   type CodeChange,
   type History,
   type HistoryEdit,
+  type HistoryEditRow,
 } from "../../shared/types.js";
 
 /**
@@ -64,6 +65,28 @@ export function historyEditsToCsv(edits: readonly HistoryEdit[]): string {
       [
         e.createdAt,
         String(e.historyId),
+        HistoryFieldLabels[e.field] ?? e.field,
+        csvText(e.before),
+        csvText(e.after),
+        csvText(e.userName),
+        csvText(e.clientIp),
+      ].join(","),
+    );
+  }
+  return CSV_BOM + lines.join("\r\n") + "\r\n";
+}
+
+/** 履歴ページの「履歴の修正」の CSV（どの商品の履歴か分かるよう商品コード・名前を付ける） */
+export function historyEditRowsToCsv(rows: readonly HistoryEditRow[]): string {
+  const lines = ["日時,履歴ID,商品コード,商品名,区分,項目,修正前,修正後,入力者,端末IP"];
+  for (const e of rows) {
+    lines.push(
+      [
+        e.createdAt,
+        String(e.historyId),
+        csvText(e.productCode),
+        csvText(e.productName),
+        e.historyType ? MovementLabels[e.historyType] : "",
         HistoryFieldLabels[e.field] ?? e.field,
         csvText(e.before),
         csvText(e.after),

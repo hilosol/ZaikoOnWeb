@@ -1,8 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
-import { Rules, type ApiErrorBody, type ImageChange, type OrderNumbersResponse, type WhoAmI } from "../../shared/types.js";
-import { historiesToCsv } from "./csv.js";
+import { HistoryKindLabels, Rules, type ApiErrorBody, type ImageChange, type OrderNumbersResponse, type WhoAmI } from "../../shared/types.js";
+
+/** "YYYY-MM-DD 00:00:00"（翌日の0時）→ その前日 "YYYYMMDD"（CSV のファイル名用） */
+function previousDay(toBefore: string): string {
+  const [y, m, d] = toBefore.slice(0, 10).split("-").map(Number);
+  const prev = new Date(y!, m! - 1, d! - 1);
+  return `${prev.getFullYear()}${String(prev.getMonth() + 1).padStart(2, "0")}${String(prev.getDate()).padStart(2, "0")}`;
+}
+import { auditLogsToCsv, codeChangesToCsv, historiesToCsv, historyEditRowsToCsv } from "./csv.js";
 import { productsToCsv } from "./productCsv.js";
 import { AppError, ValidationError } from "./errors.js";
 import { IMAGE_CONTENT_TYPES, type ImageStore } from "./images.js";
@@ -287,6 +294,28 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const productId = q.productId ? Number(q.productId) : undefined;
     return service.recentHistories(Number(q.limit ?? 100), Number.isSafeInteger(productId) ? productId : undefined);
   });
+  // ------------------------------------------------------------ 履歴ページ（検索・CSV）
+
+  app.get("/api/history-search", async (req) => service.searchHistories(req.query as Record<string, unknown>).result);
+  app.get("/api/history-search.csv", async (req, reply) => {
+    const { query, result } = service.searchHistories(req.query as Record<string, unknown>, true);
+    const rows = result.rows as never[];
+    const csv =
+      query.kind === "edits"
+        ? historyEditRowsToCsv(rows)
+        : query.kind === "audit"
+          ? auditLogsToCsv(rows)
+          : query.kind === "codes"
+            ? codeChangesToCsv(rows)
+            : historiesToCsv(rows);
+    const label = HistoryKindLabels[query.kind];
+    const span = `${query.fromAt?.slice(0, 10).replace(/-/g, "") ?? "最初"}-${query.toBefore ? previousDay(query.toBefore) : "最新"}`;
+    reply
+      .type("text/csv; charset=utf-8")
+      .header("Content-Disposition", `attachment; filename="history_${query.kind}.csv"; filename*=UTF-8''${encodeURIComponent(`${label}_${span}.csv`)}`);
+    return csv;
+  });
+
   app.get("/api/histories.csv", async (_req, reply) => {
     const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     reply

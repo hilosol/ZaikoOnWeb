@@ -146,12 +146,9 @@ export const HistoryFieldLabels: Record<string, string> = {
   cancel: "取消",
 };
 
-/** 履歴で直せる項目（数量・区分は取消して入力し直す） */
+/** 履歴で直せるのはコメントだけ（数量・区分は取消して入力し直す） */
 export interface HistoryEditRequest {
-  orderNo?: string;
-  comment?: string;
-  destination?: string;
-  reason?: string;
+  comment: string;
   userName: string;
 }
 
@@ -382,3 +379,57 @@ export interface MailSendResult {
   sent: boolean;
   message: string;
 }
+
+// ================================================================ 履歴ページ（検索）
+
+export type HistoryKind = "movements" | "edits" | "audit" | "codes";
+
+export const HistoryKindLabels: Record<HistoryKind, string> = {
+  movements: "入出庫",
+  edits: "履歴の修正",
+  audit: "操作ログ",
+  codes: "コード変更",
+};
+
+/** 取消の扱い：all = すべて表示 / exclude = 取り消された履歴と取消の履歴を除く / only = それらだけ */
+export type CanceledFilter = "all" | "exclude" | "only";
+
+export interface HistorySearchQuery {
+  kind: HistoryKind;
+  /** 期間（YYYY-MM-DD。両端を含む。省略 = 制限なし） */
+  from?: string;
+  to?: string;
+  /** キーワード（商品コード・名前・コメント・移管先・入力者など。大文字小文字・全角半角・ハイフン・ひらがなカタカナを区別しない） */
+  q?: string;
+  /** 以下は入出庫のみ */
+  types?: MovementType[];
+  canceled?: CanceledFilter;
+  /** 入力者（"" = 未登録。省略 = すべて） */
+  user?: string;
+  orderNo?: string;
+  productId?: number;
+  limit?: number;
+  offset?: number;
+}
+
+/** 修正記録の行（どの商品の履歴か分かるよう、商品コード・名前を付ける） */
+export interface HistoryEditRow extends HistoryEdit {
+  productCode: string;
+  productName: string;
+  historyType: MovementType | null;
+}
+
+export interface HistorySearchResult<T> {
+  total: number;
+  rows: T[];
+  /** 入出庫のみ：絞り込んだ範囲の数量の合計（取り消された履歴は除く） */
+  summary?: { IN: number; OUT: number; TRANSFER: number };
+}
+
+/** 年度の始まりの月（4 = 4月〜翌3月）。会社の年度に合わせてここを変える */
+export const FISCAL_YEAR_START_MONTH = 4;
+
+export const HistorySearchLimits = {
+  pageSizeMax: 500,
+  csvRowsMax: 200_000,
+} as const;

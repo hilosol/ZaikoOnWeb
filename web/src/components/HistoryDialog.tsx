@@ -1,33 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  CancelableTypes,
-  HistoryFieldLabels,
-  InReasons,
-  MovementLabels,
-  Rules,
-  type History,
-  type HistoryEdit,
-  type HistoryEditRequest,
-} from "../../../shared/types";
+import { CancelableTypes, HistoryFieldLabels, MovementLabels, Rules, type History, type HistoryEdit } from "../../../shared/types";
 import { api, ApiError, errorMessage } from "../api";
 import { useApp } from "../context";
 import { ErrorBox, formatNumber, Modal } from "./common";
-import { OrderNoField, useOrderNumbers } from "./OrderNoField";
 
 /**
  * 履歴の詳細・修正・取消（PC 画面）。
- * 受注番号・コメント・移管先・理由は直接直せる。数量・区分の誤りは「取消」して入力し直す
+ * 直せるのはコメントだけ。数量・区分の誤りは「取消」して入力し直す
  * （取消は逆向きの履歴を作って在庫を戻す。元の履歴は残る）。直した内容はすべて修正履歴に残る。
  */
 export function HistoryDialog({ historyId, onClose, onChanged }: { historyId: number; onClose: () => void; onChanged: () => void }) {
   const app = useApp();
-  const orderNumbers = useOrderNumbers();
   const [history, setHistory] = useState<History | null>(null);
   const [edits, setEdits] = useState<HistoryEdit[]>([]);
-  const [orderNo, setOrderNo] = useState("");
   const [comment, setComment] = useState("");
-  const [destination, setDestination] = useState("");
-  const [reason, setReason] = useState("");
   const [cancelReason, setCancelReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ message: string; details?: string[] } | null>(null);
@@ -37,10 +23,7 @@ export function HistoryDialog({ historyId, onClose, onChanged }: { historyId: nu
       const d = await api.historyDetail(historyId);
       setHistory(d.history);
       setEdits(d.edits);
-      setOrderNo(d.history.orderNo ?? "");
       setComment(d.history.comment ?? "");
-      setDestination(d.history.destination ?? "");
-      setReason(d.history.reason ?? "");
     } catch (e) {
       setError({ message: errorMessage(e) });
     }
@@ -60,12 +43,7 @@ export function HistoryDialog({ historyId, onClose, onChanged }: { historyId: nu
 
   const h = history;
   const editable = h.type !== "CANCEL";
-  const change: Omit<HistoryEditRequest, "userName"> = {};
-  if (orderNo.trim() !== (h.orderNo ?? "")) change.orderNo = orderNo;
-  if (comment.trim() !== (h.comment ?? "")) change.comment = comment;
-  if (h.type === "TRANSFER" && destination.trim() !== (h.destination ?? "")) change.destination = destination;
-  if (h.type === "IN" && reason !== (h.reason ?? "")) change.reason = reason;
-  const dirty = Object.keys(change).length > 0;
+  const dirty = comment.trim() !== (h.comment ?? "");
   const cancelable = CancelableTypes.includes(h.type) && h.canceledBy === null;
 
   const showError = (e: unknown) => setError({ message: errorMessage(e), details: e instanceof ApiError ? e.details : undefined });
@@ -76,8 +54,8 @@ export function HistoryDialog({ historyId, onClose, onChanged }: { historyId: nu
     setBusy(true);
     setError(null);
     try {
-      await api.editHistory(h.id, { ...change, userName });
-      app.toast("履歴を修正しました");
+      await api.editHistory(h.id, { comment, userName });
+      app.toast("コメントを修正しました");
       onChanged();
       await load();
     } catch (e) {
@@ -125,6 +103,24 @@ export function HistoryDialog({ historyId, onClose, onChanged }: { historyId: nu
           <b className={`type-${h.type}`}>{MovementLabels[h.type]}</b> {formatNumber(h.quantity)}（処理後在庫 {formatNumber(h.stockAfter)}）
           {h.canceledBy !== null && <span className="tag-label canceled">取消済</span>}
         </dd>
+        {h.orderNo && (
+          <>
+            <dt>受注番号</dt>
+            <dd>{h.orderNo}</dd>
+          </>
+        )}
+        {h.destination && (
+          <>
+            <dt>移管先</dt>
+            <dd>{h.destination}</dd>
+          </>
+        )}
+        {h.reason && (
+          <>
+            <dt>理由</dt>
+            <dd>{h.reason}</dd>
+          </>
+        )}
         <dt>入力者</dt>
         <dd>
           {h.userName || "(未登録)"}（{h.clientIp}）
@@ -134,37 +130,14 @@ export function HistoryDialog({ historyId, onClose, onChanged }: { historyId: nu
       {editable ? (
         <div className="history-edit">
           <label className="field">
-            <span>受注番号</span>
-            <OrderNoField value={orderNo} onChange={setOrderNo} data={orderNumbers.data} disabled={busy} />
-          </label>
-          {h.type === "TRANSFER" && (
-            <label className="field">
-              <span>移管先</span>
-              <input type="text" value={destination} onChange={(e) => setDestination(e.target.value)} maxLength={Rules.destinationMaxLength} />
-            </label>
-          )}
-          {h.type === "IN" && (
-            <label className="field">
-              <span>入庫の理由</span>
-              <select value={reason} onChange={(e) => setReason(e.target.value)} className="plain-select">
-                <option value="">（なし）</option>
-                {InReasons.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <label className="field">
             <span>コメント</span>
             <input type="text" value={comment} onChange={(e) => setComment(e.target.value)} maxLength={Rules.commentMaxLength} />
           </label>
           <div className="history-edit-actions">
-            <span className="muted small">数量・区分の間違いは、下の「取消」をして入力し直してください。</span>
+            <span className="muted small">直せるのはコメントだけです。数量・区分の間違いは、下の「取消」をして入力し直してください。</span>
             <span className="spacer" />
             <button type="button" className="button primary" onClick={() => void save()} disabled={busy || !dirty}>
-              修正を保存
+              コメントを保存
             </button>
           </div>
         </div>

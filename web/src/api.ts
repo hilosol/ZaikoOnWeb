@@ -16,6 +16,7 @@ import type {
   Device,
   HistoryEdit,
   HistoryEditRequest,
+  HistorySearchResult,
   LogExportStatus,
   OrderNumbersResponse,
   UnassignedIp,
@@ -84,6 +85,9 @@ export const api = {
   linkDevice: (id: string, userId: number | null, note: string, userName: string) =>
     request<Device>("PATCH", `/api/devices/${id}`, { userId, note, userName }),
   deleteDevice: (id: string, userName: string) => request<void>("DELETE", `/api/devices/${id}`, { userName }),
+  historySearch: <T,>(query: Record<string, string>) =>
+    request<HistorySearchResult<T>>("GET", `/api/history-search?${new URLSearchParams(query).toString()}`),
+  historySearchCsvUrl: (query: Record<string, string>) => `/api/history-search.csv?${new URLSearchParams(query).toString()}`,
   orderNumbers: () => request<OrderNumbersResponse>("GET", "/api/order-numbers"),
   linkUserIp: (userId: number, ip: string, note: string, replace: boolean, userName: string) =>
     request<User>("POST", `/api/users/${userId}/ips`, { ip, note, replace, userName }),

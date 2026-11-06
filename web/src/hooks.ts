@@ -6,7 +6,9 @@ export type Route =
   | { page: "inventory" }
   | { page: "new"; code: string }
   | { page: "edit"; id: number }
-  | { page: "settings" };
+  | { page: "settings" }
+  /** 履歴ページ（productId 指定時はその商品の履歴に絞る） */
+  | { page: "history"; productId?: number };
 
 export function parseRoute(hash: string): Route {
   const [path = "", query = ""] = hash.replace(/^#/, "").split("?");
@@ -15,6 +17,10 @@ export function parseRoute(hash: string): Route {
   const edit = /^\/products\/(\d+)$/.exec(path);
   if (edit) return { page: "edit", id: Number(edit[1]) };
   if (path === "/settings") return { page: "settings" };
+  if (path === "/history") {
+    const pid = Number(params.get("productId"));
+    return Number.isSafeInteger(pid) && pid > 0 ? { page: "history", productId: pid } : { page: "history" };
+  }
   return { page: "inventory" };
 }
 
@@ -26,6 +32,8 @@ export function routeToHash(route: Route): string {
       return `#/products/${route.id}`;
     case "settings":
       return "#/settings";
+    case "history":
+      return route.productId ? `#/history?productId=${route.productId}` : "#/history";
     default:
       return "#/";
   }

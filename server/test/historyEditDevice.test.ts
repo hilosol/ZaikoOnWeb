@@ -14,46 +14,43 @@ afterEach(() => f.cleanup());
 
 const last = () => f.service.recentHistories(1)[0]!;
 
-describe("履歴の修正", () => {
-  it("受注番号・コメント・移管先を直し、項目ごとに修正前→修正後・入力者・IPを記録する", () => {
-    f.service.changeStock(pid, "TRANSFER", 2, f.actor, { destination: "製造部", comment: "貸出" });
+describe("履歴の修正（コメントだけ）", () => {
+  it("コメントを直し、修正前→修正後・入力者・IPを記録する", () => {
+    f.service.changeStock(pid, "TRANSFER", 2, f.actor, { destination: "製造部", comment: "貸出", orderNo: "YHO-26002" });
     const h = last();
     f.clock.advance(10);
-    const edited = f.service.editHistory(h.id, { orderNo: "YHO-26002", comment: "", destination: "品証部" }, { userName: "山田", clientIp: "192.168.1.30" });
-    expect(edited).toMatchObject({ orderNo: "YHO-26002", comment: null, destination: "品証部", quantity: 2 });
-    const edits = f.service.historyEdits(h.id);
-    expect(edits.map((e) => [e.field, e.before, e.after])).toEqual(
-      expect.arrayContaining([
-        ["orderNo", "", "YHO-26002"],
-        ["comment", "貸出", ""],
-        ["destination", "製造部", "品証部"],
-      ]),
-    );
-    expect(edits[0]).toMatchObject({ userName: "山田", clientIp: "192.168.1.30", createdAt: "2026-11-02 09:10:00" });
+    const edited = f.service.editHistory(h.id, { comment: " 長期貸出\n（返却未定） " }, { userName: "山田", clientIp: "192.168.1.30" });
+    expect(edited).toMatchObject({ comment: "長期貸出 （返却未定）", destination: "製造部", orderNo: "YHO-26002", quantity: 2 });
+    expect(f.service.historyEdits(h.id)).toEqual([
+      expect.objectContaining({ field: "comment", before: "貸出", after: "長期貸出 （返却未定）", userName: "山田", clientIp: "192.168.1.30", createdAt: "2026-11-02 09:10:00" }),
+    ]);
   });
 
-  it("変わっていない項目は記録しない", () => {
+  it("コメントを消すこともできる（修正後は空）", () => {
+    f.service.changeStock(pid, "OUT", 1, f.actor, { comment: "修理用" });
+    expect(f.service.editHistory(last().id, { comment: "" }, f.actor).comment).toBeNull();
+    expect(f.service.historyEdits()[0]).toMatchObject({ before: "修理用", after: "" });
+  });
+
+  it("変わっていなければ記録しない", () => {
     f.service.changeStock(pid, "OUT", 1, f.actor, { comment: "修理用" });
     f.service.editHistory(last().id, { comment: " 修理用 " }, f.actor);
     expect(f.service.historyEdits()).toHaveLength(0);
   });
 
-  it("入庫の理由は決まった選択肢だけ。区分に合わない項目は拒否", () => {
+  it.each([{ orderNo: "X" }, { destination: "品証部" }, { reason: "戻り" }, { comment: "x", orderNo: "X" }])("コメント以外は直せない: %o", (change) => {
     f.service.changeStock(pid, "IN", 1, f.actor, { reason: "購入" });
-    const inId = last().id;
-    expect(f.service.editHistory(inId, { reason: "戻り" }, f.actor).reason).toBe("戻り");
-    expect(() => f.service.editHistory(inId, { reason: "盗難" }, f.actor)).toThrow(/購入・戻り・その他/);
-    expect(() => f.service.editHistory(inId, { destination: "x" }, f.actor)).toThrow(/移管の履歴だけ/);
-    f.service.changeStock(pid, "OUT", 1, f.actor);
-    expect(() => f.service.editHistory(last().id, { reason: "購入" }, f.actor)).toThrow(/入庫の履歴だけ/);
+    expect(() => f.service.editHistory(last().id, change, f.actor)).toThrow(/コメントだけ/);
+    expect(f.service.historyEdits()).toHaveLength(0);
   });
 
-  it("境界値：コメント・移管先の文字数、移管先は空にできない", () => {
-    f.service.changeStock(pid, "TRANSFER", 1, f.actor, { destination: "製造部" });
+  it("コメントの文字数の境界値・形式", () => {
+    f.service.changeStock(pid, "OUT", 1, f.actor);
     const id = last().id;
-    expect(() => f.service.editHistory(id, { destination: " " }, f.actor)).toThrow(/移管先/);
     expect(() => f.service.editHistory(id, { comment: "x".repeat(Rules.commentMaxLength + 1) }, f.actor)).toThrow(/200文字/);
     expect(f.service.editHistory(id, { comment: "x".repeat(Rules.commentMaxLength) }, f.actor).comment).toHaveLength(Rules.commentMaxLength);
+    expect(() => f.service.editHistory(id, { comment: 1 }, f.actor)).toThrow(/コメントを入力/);
+    expect(() => f.service.editHistory(id, {}, f.actor)).toThrow(/コメントを入力/);
   });
 
   it("入力者が分からない場合は修正できない", () => {
@@ -191,10 +188,12 @@ describe("端末ID", () => {
     try {
       f.service.changeStock(pid, "OUT", 2, f.actor);
       const id = last().id;
-      const patch = await app.inject({ method: "PATCH", url: `/api/histories/${id}`, payload: { orderNo: "X-1", userName: "山田" } });
-      expect(patch.json().orderNo).toBe("X-1");
+      const patch = await app.inject({ method: "PATCH", url: `/api/histories/${id}`, payload: { comment: "直した", userName: "山田" } });
+      expect(patch.json().comment).toBe("直した");
       const detail = (await app.inject({ url: `/api/histories/${id}` })).json();
-      expect(detail.edits[0]).toMatchObject({ field: "orderNo", after: "X-1" });
+      expect(detail.edits[0]).toMatchObject({ field: "comment", after: "直した" });
+      const bad = await app.inject({ method: "PATCH", url: `/api/histories/${id}`, payload: { orderNo: "X-1", userName: "山田" } });
+      expect(bad.statusCode).toBe(400);
       const cancel = await app.inject({ method: "POST", url: `/api/histories/${id}/cancel`, payload: { reason: "誤り", userName: "山田" } });
       expect(cancel.json()).toMatchObject({ type: "CANCEL", cancelOf: id });
       const again = await app.inject({ method: "POST", url: `/api/histories/${id}/cancel`, payload: { reason: "誤り", userName: "山田" } });
