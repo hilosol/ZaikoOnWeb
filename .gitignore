@@ -6,3 +6,5 @@ e2e/shots/
 *.log
 dist.prev/
 demo-data/
+# this PC's own settings (see settings.example.bat)
+/settings.bat

@@ -1,11 +1,8 @@
 @echo off
 rem ==== Zaiko (inventory) server - start in this window ====
-rem Change the port here if 28003 is already used (also change run-server.bat and register-autostart.bat).
-set ZAIKO_PORT=28003
-rem To store data in another folder, remove "rem" below and edit the path.
-rem set ZAIKO_DATA_DIR=D:\zaiko-data
-
+rem Port (default 28003) and data folder are set in settings.bat.
 cd /d "%~dp0"
+call load-settings.bat
 where node >nul 2>nul
 if errorlevel 1 (
   echo Node.js is not installed. Install Node.js 24 LTS from https://nodejs.org/

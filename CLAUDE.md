@@ -25,7 +25,7 @@ npm run dev       # 開発用（画面 5173 / API 28003）
 ## 守ること
 - `data/`（DB・商品写真・受注番号リスト・メール設定）と `dist/` はコミットしない（.gitignore 済み）。顧客名などの実データをテストやコードに入れない
 - `.bat` は **ASCII のみ・改行 CRLF**（日本語を入れると共有PCで文字化けする）
-- 待ち受けポートは 28003（`start.bat` / `run-server.bat` / `register-autostart.bat` の3か所と `server/src/main.ts` の既定値をそろえる）
+- 待ち受けポートの既定値は 28003。bat には直接書かず、`load-settings.bat` が既定値を設定し、共有PCごとの `settings.bat`（.gitignore 済み、見本は `settings.example.bat`）で上書きする。既定値は `load-settings.bat` / `settings.example.bat` / `server/src/main.ts` でそろえる（`server/test/batFiles.test.ts` で確認）
 - 社内LANからの接続だけを受け付ける（`network.ts` の判定を緩めない）
 - 入力値は境界値・形式を検証し、エラーは日本語で何を直せばよいか分かる文にする
 - 履歴は消さない（修正は history_edits に記録、取消は逆向きの CANCEL 履歴）
