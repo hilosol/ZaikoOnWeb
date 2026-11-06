@@ -133,9 +133,9 @@ export function HistoryDialog({ historyId, onClose, onChanged }: { historyId: nu
 
       {editable ? (
         <div className="history-edit">
-          {/* OrderNoField は入力欄と × ボタンを含むので label で囲まない（入力欄に aria-label="受注番号" あり） */}
+          {/* OrderNoField は入力欄と × ボタンを含むので label で囲まない（入力欄に aria-label="紐づけID" あり） */}
           <div className="field">
-            <span>受注番号</span>
+            <span>紐づけID（受注番号等）</span>
             <OrderNoField value={orderNo} onChange={setOrderNo} data={orderNumbers.data} disabled={busy} />
           </div>
           <label className="field">
@@ -143,7 +143,7 @@ export function HistoryDialog({ historyId, onClose, onChanged }: { historyId: nu
             <input type="text" value={comment} onChange={(e) => setComment(e.target.value)} maxLength={Rules.commentMaxLength} />
           </label>
           <div className="history-edit-actions">
-            <span className="muted small">直せるのは受注番号とコメントです。数量・区分の間違いは、下の「取消」をして入力し直してください。</span>
+            <span className="muted small">直せるのは紐づけIDとコメントです。数量・区分の間違いは、下の「取消」をして入力し直してください。</span>
             <span className="spacer" />
             <button type="button" className="button primary" onClick={() => void save()} disabled={busy || !dirty}>
               修正を保存

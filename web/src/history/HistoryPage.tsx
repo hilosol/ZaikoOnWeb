@@ -315,7 +315,7 @@ function MovementTable({ rows, onOpen }: { rows: History[]; onOpen: (id: number)
           <th>区分</th>
           <th className="num">数量</th>
           <th className="num">処理後</th>
-          <th>受注番号</th>
+          <th>紐づけID</th>
           <th>移管先・理由</th>
           <th>コメント</th>
           <th>入力者</th>

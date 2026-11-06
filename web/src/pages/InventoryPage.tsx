@@ -392,7 +392,7 @@ function HistoryList({ histories, compact, onChanged }: { histories: History[]; 
             {(h.reason || h.comment || h.orderNo || h.canceledBy !== null) && (
               <span className="comment" title={h.comment ?? undefined}>
                 {h.canceledBy !== null && <span className="tag-label canceled">取消済</span>}
-                {h.orderNo && <span className="tag-label order-no">受注 {h.orderNo}</span>}
+                {h.orderNo && <span className="tag-label order-no">紐づけ {h.orderNo}</span>}
                 {h.reason && <span className="tag-label in-reason">{h.reason}</span>}
                 {h.comment && `💬 ${h.comment}`}
               </span>
@@ -473,7 +473,7 @@ function StockPanel({
     try {
       const updated = await api.changeStock(product.id, { type, quantity: qty, userName, comment, orderNo });
       app.toast(
-        `「${updated.name}」を ${formatNumber(qty)} 個${MovementLabels[type]}しました（在庫 ${formatNumber(updated.stock)}${orderNo.trim() ? `・受注 ${orderNo.trim()}` : ""}）`,
+        `「${updated.name}」を ${formatNumber(qty)} 個${MovementLabels[type]}しました（在庫 ${formatNumber(updated.stock)}${orderNo.trim() ? `・紐づけ ${orderNo.trim()}` : ""}）`,
       );
       orderNumbers.reload(); // 手入力した番号を候補に加える
       setQtyText("1");

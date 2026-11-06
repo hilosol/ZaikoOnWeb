@@ -734,42 +734,42 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     // ================================================================ 受注番号（リストから選択 or 手入力）
     await page.getByRole("button", { name: "在庫一覧" }).click();
     await page.locator(".product-row", { hasText: "青い箱" }).click();
-    const orderInput = page.locator(".stock-panel").getByRole("combobox", { name: "受注番号" });
+    const orderInput = page.locator(".stock-panel").getByRole("combobox", { name: "紐づけID" });
     await orderInput.fill("きおく");
     await page.locator(".order-suggest button", { hasText: "YHO-26042" }).waitFor();
     await page.screenshot({ path: `${SHOTS}/39_order_suggest.png` });
     await page.locator(".order-suggest button", { hasText: "YHO-26042" }).click();
-    check("受注番号：案件名（ひらがな）で絞り込んでリストから選べる", (await orderInput.inputValue()) === "YHO-26042");
-    check("受注番号：選んだ番号の案件名を表示", (await page.getByTestId("order-hint").textContent()).includes("キオクシア"));
+    check("紐づけID：案件名（ひらがな）で絞り込んでリストから選べる", (await orderInput.inputValue()) === "YHO-26042");
+    check("紐づけID：選んだ番号の案件名を表示", (await page.getByTestId("order-hint").textContent()).includes("キオクシア"));
     await page.locator(".stock-panel").getByRole("button", { name: "出庫", exact: true }).click();
-    await page.locator(".toast", { hasText: "受注 YHO-26042" }).waitFor();
-    await page.locator(".stock-panel .tag-label.order-no", { hasText: "受注 YHO-26042" }).first().waitFor();
-    check("受注番号：出庫の履歴に記録し表示", true);
-    check("受注番号：出庫後も残す（続けて同じ受注で出庫できる）", (await orderInput.inputValue()) === "YHO-26042");
+    await page.locator(".toast", { hasText: "紐づけ YHO-26042" }).waitFor();
+    await page.locator(".stock-panel .tag-label.order-no", { hasText: "紐づけ YHO-26042" }).first().waitFor();
+    check("紐づけID：出庫の履歴に記録し表示", true);
+    check("紐づけID：出庫後も残す（続けて同じ受注で出庫できる）", (await orderInput.inputValue()) === "YHO-26042");
     await page.locator(".stock-panel").screenshot({ path: `${SHOTS}/40_order_panel.png` });
     // リストに無い番号の手入力（全角・小文字で入力したリストの番号はリストの表記にそろう）
     await orderInput.fill("NEW-99001");
     await page.locator(".stock-panel").getByLabel("コメント").click();
-    check("受注番号：リストに無い番号はその旨を表示", (await page.getByTestId("order-hint").textContent()).includes("リストに無い番号"));
+    check("紐づけID：リストに無い番号はその旨を表示", (await page.getByTestId("order-hint").textContent()).includes("リストに無い番号"));
     await page.locator(".stock-panel").getByRole("button", { name: "入庫", exact: true }).click();
-    await page.locator(".toast", { hasText: "受注 NEW-99001" }).waitFor();
+    await page.locator(".toast", { hasText: "紐づけ NEW-99001" }).waitFor();
     await orderInput.fill("ｙｈｏ２６００２");
     await page.locator(".stock-panel").getByRole("button", { name: "出庫", exact: true }).click();
     await page.locator(".toast", { hasText: "出庫しました" }).last().waitFor();
     const orderHist = await page.evaluate(async () => (await (await fetch("/api/histories?limit=3")).json()).map((h) => h.orderNo));
-    check("受注番号：手入力の番号も記録し、リストの番号は表記をそろえる", orderHist.join(",") === "YHO-26002,NEW-99001,YHO-26042", orderHist.join(","));
+    check("紐づけID：手入力の番号も記録し、リストの番号は表記をそろえる", orderHist.join(",") === "YHO-26002,NEW-99001,YHO-26042", orderHist.join(","));
     const orderCsv = await (await page.request.get(`${base}/api/histories.csv`)).text();
-    check("受注番号：履歴CSVに受注番号の列", orderCsv.includes("区分,理由,受注番号,数量") && orderCsv.includes(",出庫,,YHO-26042,1,"));
+    check("紐づけID：履歴CSVに受注番号の列", orderCsv.includes("区分,理由,紐づけID,数量") && orderCsv.includes(",出庫,,YHO-26042,1,"));
     await orderInput.fill("");
     await orderInput.click();
     const firstSuggest = await page.locator(".order-suggest .order-number").first().textContent();
-    check("受注番号：最近手入力した番号も候補に出る", firstSuggest === "NEW-99001", firstSuggest);
+    check("紐づけID：最近手入力した番号も候補に出る", firstSuggest === "NEW-99001", firstSuggest);
     await page.keyboard.press("Escape");
 
     // スマホ
     await s.goto(`${mbase}/m?id=B001`);
     await s.getByTestId("m-stock").waitFor();
-    await s.getByRole("combobox", { name: "受注番号" }).fill("26002");
+    await s.getByRole("combobox", { name: "紐づけID" }).fill("26002");
     await s.locator(".order-suggest button", { hasText: "YHO-26002" }).tap();
     let mConfirm = "";
     s.once("dialog", (d) => {
@@ -778,7 +778,7 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     });
     await s.getByRole("button", { name: "出庫", exact: true }).tap();
     await s.locator(".m-message.ok").waitFor();
-    check("スマホ：受注番号を選んで出庫（確認に受注番号を表示）", mConfirm.includes("受注番号: YHO-26002"), mConfirm.replace(/\n/g, " / "));
+    check("スマホ：紐づけIDを選んで出庫（確認に紐づけIDを表示）", mConfirm.includes("紐づけID: YHO-26002"), mConfirm.replace(/\n/g, " / "));
     await s.locator(".m-recent .tag-label.order-no", { hasText: "YHO-26002" }).first().waitFor();
     await s.screenshot({ path: `${SHOTS}/41_m_order.png`, fullPage: true });
 
@@ -786,24 +786,24 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     await page.getByRole("button", { name: "在庫一覧" }).click();
     await page.locator(".product-row", { hasText: "青い箱" }).click();
     const stockBefore = Number(await page.getByTestId("stock-value").textContent());
-    await page.locator(".stock-panel").getByRole("combobox", { name: "受注番号" }).fill("");
+    await page.locator(".stock-panel").getByRole("combobox", { name: "紐づけID" }).fill("");
     await page.locator(".stock-panel").getByLabel("コメント").fill("数量まちがい用");
     await page.locator(".stock-panel").getByRole("button", { name: "出庫", exact: true }).click();
     await page.locator(".toast", { hasText: "出庫しました" }).last().waitFor();
     await page.locator(".stock-panel .history-list li", { hasText: "数量まちがい用" }).first().click();
     const dlg = page.getByRole("dialog", { name: "履歴の詳細・修正" });
     await dlg.waitFor();
-    check("履歴の修正：直せるのは受注番号とコメント（移管先・数量などの入力欄は無い）",
-      (await dlg.getByRole("combobox", { name: "受注番号" }).count()) === 1 && (await dlg.locator("input").count()) === 3);
+    check("履歴の修正：直せるのは紐づけIDとコメント（移管先・数量などの入力欄は無い）",
+      (await dlg.getByRole("combobox", { name: "紐づけID" }).count()) === 1 && (await dlg.locator("input").count()) === 3);
     await dlg.getByLabel("コメント").fill("修理用（修正）");
-    await dlg.getByRole("combobox", { name: "受注番号" }).fill("yho26002");
+    await dlg.getByRole("combobox", { name: "紐づけID" }).fill("yho26002");
     await dlg.getByLabel("コメント").click(); // 候補の一覧を閉じる
     await dlg.getByRole("button", { name: "修正を保存" }).click();
     await page.locator(".toast", { hasText: "履歴を修正しました" }).waitFor();
     await dlg.getByTestId("history-edits").waitFor();
     const editRows = await dlg.locator("[data-testid=history-edits] tbody tr").allTextContents();
-    check("履歴の修正：受注番号（リストの表記にそろえる）とコメントを直し、項目ごとに修正履歴に残す",
-      editRows.length === 2 && editRows.some((r) => r.includes("数量まちがい用") && r.includes("修理用（修正）")) && editRows.some((r) => r.includes("受注番号") && r.includes("YHO-26002")),
+    check("履歴の修正：紐づけID（リストの表記にそろえる）とコメントを直し、項目ごとに修正履歴に残す",
+      editRows.length === 2 && editRows.some((r) => r.includes("数量まちがい用") && r.includes("修理用（修正）")) && editRows.some((r) => r.includes("紐づけID") && r.includes("YHO-26002")),
       editRows.join(" | "));
     await dlg.getByLabel("取消の理由").fill("数量の入力間違い");
     page.once("dialog", (d) => d.accept());
@@ -861,17 +861,17 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     await page.locator(".history-page .error-box", { hasText: "開始日が終了日より後" }).waitFor();
     check("履歴ページ：期間の入力ミスを表示", true);
     await page.getByRole("button", { name: "直近3か月" }).click();
-    await page.getByRole("combobox", { name: "受注番号" }).fill("YHO-26002");
+    await page.getByRole("combobox", { name: "紐づけID" }).fill("YHO-26002");
     await page.locator(".history-page").getByLabel("区分").selectOption("OUT");
     await page.waitForFunction(() => document.querySelector("[data-testid=history-total]")?.textContent?.match(/^\d+ 件$/));
     await page.waitForTimeout(500);
     const sum = await page.getByTestId("history-summary").textContent();
     const outRows = await page.locator("[data-testid=history-table] tbody tr").allTextContents();
-    check("履歴ページ：受注番号・区分で絞り込み、合計は取消分を除く", outRows.length >= 1 && outRows.every((t) => t.includes("出庫") && t.includes("YHO-26002")) && sum.includes("出庫 1"), `${outRows.length}行 ${sum}`);
+    check("履歴ページ：紐づけID・区分で絞り込み、合計は取消分を除く", outRows.length >= 1 && outRows.every((t) => t.includes("出庫") && t.includes("YHO-26002")) && sum.includes("出庫 1"), `${outRows.length}行 ${sum}`);
     await page.screenshot({ path: `${SHOTS}/45_history_page.png`, fullPage: true });
     const csvHref = await page.getByRole("link", { name: "この条件でCSV出力" }).getAttribute("href");
     const pageCsv = await (await page.request.get(`${base}${csvHref}`)).text();
-    check("履歴ページ：同じ条件でCSV出力", pageCsv.includes("受注番号") && pageCsv.split("\r\n").filter(Boolean).length === outRows.length + 1, `${pageCsv.split("\r\n").filter(Boolean).length - 1}行`);
+    check("履歴ページ：同じ条件でCSV出力", pageCsv.includes("紐づけID") && pageCsv.split("\r\n").filter(Boolean).length === outRows.length + 1, `${pageCsv.split("\r\n").filter(Boolean).length - 1}行`);
     // 受注番号を入力した直後（入力欄にカーソルがある状態）でも、1回のクリックで開けること
     await page.waitForLoadState("networkidle");
     await page.locator("[data-testid=history-table] tbody tr").first().click();

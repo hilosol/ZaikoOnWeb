@@ -134,7 +134,7 @@ try {
   for (const url of urls) console.log(`   ${url}`);
   console.log(` データの保存先: ${dataDir}`);
   console.log(` 履歴のCSV（1時間ごとに更新）: ${path.join(dataDir, "logs")}`);
-  console.log(` 受注番号リスト: ${orderListFile}（${orderList.list().status.exists ? `${orderList.list().status.count}件` : "ファイルなし"}）`);
+  console.log(` 紐づけIDリスト: ${orderListFile}（${orderList.list().status.exists ? `${orderList.list().status.count}件` : "ファイルなし"}）`);
   console.log(" 終了するには Ctrl+C を押してください");
   console.log("========================================\n");
 } catch (error) {

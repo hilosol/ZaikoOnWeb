@@ -88,8 +88,8 @@ describe("受注番号の記録", () => {
   });
 
   it("長すぎる・文字列以外は拒否し、在庫も変えない", () => {
-    expect(() => service.changeStock(pid, "OUT", 1, f.actor, { orderNo: "x".repeat(Rules.orderNoMaxLength + 1) })).toThrow(/受注番号は50文字以内/);
-    expect(() => service.changeStock(pid, "OUT", 1, f.actor, { orderNo: 123 })).toThrow(/受注番号の形式/);
+    expect(() => service.changeStock(pid, "OUT", 1, f.actor, { orderNo: "x".repeat(Rules.orderNoMaxLength + 1) })).toThrow(/紐づけIDは50文字以内/);
+    expect(() => service.changeStock(pid, "OUT", 1, f.actor, { orderNo: 123 })).toThrow(/紐づけIDの形式/);
     expect(service.getProduct(pid).stock).toBe(10);
     service.changeStock(pid, "OUT", 1, f.actor, { orderNo: "x".repeat(Rules.orderNoMaxLength) });
     expect(service.getProduct(pid).stock).toBe(9);

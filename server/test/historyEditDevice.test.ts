@@ -61,13 +61,13 @@ describe("履歴の修正（コメント・受注番号）", () => {
     f.service.changeStock(pid, "OUT", 1, f.actor);
     const id = last().id;
     expect(f.service.editHistory(id, { orderNo: "x".repeat(Rules.orderNoMaxLength) }, f.actor).orderNo).toHaveLength(Rules.orderNoMaxLength);
-    expect(() => f.service.editHistory(id, { orderNo: "x".repeat(Rules.orderNoMaxLength + 1) }, f.actor)).toThrow(/受注番号は50文字以内/);
-    expect(() => f.service.editHistory(id, { orderNo: 1 }, f.actor)).toThrow(/受注番号の形式/);
+    expect(() => f.service.editHistory(id, { orderNo: "x".repeat(Rules.orderNoMaxLength + 1) }, f.actor)).toThrow(/紐づけIDは50文字以内/);
+    expect(() => f.service.editHistory(id, { orderNo: 1 }, f.actor)).toThrow(/紐づけIDの形式/);
   });
 
   it.each([{ destination: "品証部" }, { reason: "戻り" }, { comment: "x", destination: "X" }, { quantity: 3 }])("コメント・受注番号以外は直せない: %o", (change) => {
     f.service.changeStock(pid, "IN", 1, f.actor, { reason: "購入" });
-    expect(() => f.service.editHistory(last().id, change, f.actor)).toThrow(/コメントと受注番号だけ/);
+    expect(() => f.service.editHistory(last().id, change, f.actor)).toThrow(/コメントと紐づけIDだけ/);
     expect(f.service.historyEdits()).toHaveLength(0);
   });
 

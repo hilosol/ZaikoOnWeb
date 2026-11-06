@@ -20,10 +20,10 @@ export function OrderListSection() {
 
   const st = data?.status;
   return (
-    <section className="card" aria-label="受注番号リスト">
-      <h2>受注番号リスト</h2>
+    <section className="card" aria-label="紐づけIDリスト">
+      <h2>紐づけIDリスト（受注番号等）</h2>
       <p className="muted small">
-        入出庫の「受注番号」欄の候補です。共有PCのリストファイル（1行1件。「受注番号_案件名」＝案件フォルダ名そのまま、または番号だけ）を読みます。
+        入出庫の「紐づけID」欄の候補です（ファイル名は 受注番号リスト.txt のまま）。共有PCのリストファイル（1行1件。「受注番号_案件名」＝案件フォルダ名そのまま、または番号だけ）を読みます。
         ファイルを置き換えると自動で反映されます。リストに無い番号も入力できます。
       </p>
       {error && <div className="error-box">{error}</div>}

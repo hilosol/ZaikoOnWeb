@@ -24,7 +24,7 @@ export function csvText(value: string | null | undefined): string {
 export const CSV_BOM = "﻿";
 
 export function historiesToCsv(histories: readonly History[]): string {
-  const lines = ["日時,商品コード,商品名,区分,理由,受注番号,数量,処理後在庫,移管先,コメント,入力者,端末IP,取消,履歴ID"];
+  const lines = ["日時,商品コード,商品名,区分,理由,紐づけID,数量,処理後在庫,移管先,コメント,入力者,端末IP,取消,履歴ID"];
   for (const h of histories) {
     lines.push(
       [

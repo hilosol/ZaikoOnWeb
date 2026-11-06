@@ -129,8 +129,8 @@ export function OrderNoField({
             }
           }}
           maxLength={Rules.orderNoMaxLength}
-          placeholder="受注番号（任意）リストから選択 or 入力"
-          aria-label="受注番号"
+          placeholder="紐づけID（受注番号等・任意）リストから選択 or 入力"
+          aria-label="紐づけID"
           role="combobox"
           aria-expanded={open && shown.length > 0}
           aria-controls={listId}
@@ -148,7 +148,7 @@ export function OrderNoField({
               onChange("");
               inputRef.current?.focus();
             }}
-            aria-label="受注番号を消す"
+            aria-label="紐づけIDを消す"
             disabled={disabled}
           >
             ×

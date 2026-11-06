@@ -1006,7 +1006,7 @@ export class InventoryService {
   editHistory(id: number, change: Record<string, unknown>, actor: Actor): History {
     const userName = this.requireUser(actor);
     const other = Object.keys(change).filter((k) => k !== "comment" && k !== "orderNo");
-    if (other.length > 0) throw new ValidationError("履歴で直せるのはコメントと受注番号だけです。");
+    if (other.length > 0) throw new ValidationError("履歴で直せるのはコメントと紐づけIDだけです。");
     if (change.comment === undefined && change.orderNo === undefined) throw new ValidationError("直す内容を入力してください。");
 
     let comment: string | undefined;
@@ -1120,11 +1120,11 @@ export class InventoryService {
    * リストに無い番号もそのまま記録できる（新しい案件でリストの更新前に使う場合など）。
    */
   private normalizeOrderNo(raw: unknown): string | null {
-    if (raw !== undefined && raw !== null && typeof raw !== "string") throw new ValidationError("受注番号の形式が正しくありません。");
+    if (raw !== undefined && raw !== null && typeof raw !== "string") throw new ValidationError("紐づけIDの形式が正しくありません。");
     const text = trimText(raw).replace(/\s*[\r\n]+\s*/g, " ");
     if (!text) return null;
     if (text.length > Rules.orderNoMaxLength) {
-      throw new ValidationError(`受注番号は${Rules.orderNoMaxLength}文字以内で入力してください。`);
+      throw new ValidationError(`紐づけIDは${Rules.orderNoMaxLength}文字以内で入力してください。`);
     }
     return this.orderNumbers?.find(text)?.number ?? text;
   }

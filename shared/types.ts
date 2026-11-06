@@ -139,7 +139,7 @@ export interface HistoryEdit {
 }
 
 export const HistoryFieldLabels: Record<string, string> = {
-  orderNo: "受注番号",
+  orderNo: "紐づけID",
   comment: "コメント",
   destination: "移管先",
   reason: "理由",

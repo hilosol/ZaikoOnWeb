@@ -171,7 +171,7 @@ export function MobileApp() {
       const lines = [
         `${product.name}`,
         `を ${formatNumber(qty)} 個${OP_LABEL[op]}します${op === "TRANSFER" ? `（移管先: ${destination}）` : ""}。`,
-        orderNo.trim() ? `受注番号: ${orderNo.trim()}` : "",
+        orderNo.trim() ? `紐づけID: ${orderNo.trim()}` : "",
         comment.trim() ? `コメント: ${comment.trim()}` : "",
         `入力者: ${who}`,
         "よろしいですか？",
@@ -403,7 +403,7 @@ export function MobileApp() {
                       {(h.reason || h.comment || h.orderNo || h.canceledBy !== null) && (
                         <span className="comment">
                           {h.canceledBy !== null && <span className="tag-label canceled">取消済</span>}
-                          {h.orderNo && <span className="tag-label order-no">受注 {h.orderNo}</span>}
+                          {h.orderNo && <span className="tag-label order-no">紐づけ {h.orderNo}</span>}
                           {h.reason && <span className="tag-label in-reason">{h.reason}</span>}
                           {h.comment && `💬 ${h.comment}`}
                         </span>
@@ -579,7 +579,7 @@ function InDialog({
         {orderNo && (
           <>
             <br />
-            受注番号: {orderNo}
+            紐づけID: {orderNo}
           </>
         )}
       </p>
