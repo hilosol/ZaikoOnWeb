@@ -4,7 +4,6 @@ import { MovementLabels, Rules, type CodeChange, type History, type Product } fr
 import { api, errorMessage } from "../api";
 import { AdjustStockDialog } from "../components/AdjustStockDialog";
 import { QrLabelDialog } from "../components/QrLabelDialog";
-import { ScannerDialog } from "../components/ScannerDialog";
 import { HistoryDialog } from "../components/HistoryDialog";
 import { OrderNoField, useOrderNumbers } from "../components/OrderNoField";
 import { SupplierLinks } from "../components/Suppliers";
@@ -39,6 +38,9 @@ export function OffBookBadge({ product }: { product: Product }) {
   return product.offBook ? <span className="tag-label off-book">簿外</span> : null;
 }
 
+/** バーコード・QR のコードらしい文字列か（英数字と - _ . / のみ。商品名の検索で新規登録を提案しないため） */
+export const looksLikeCode = (text: string): boolean => /^[0-9A-Za-z\-_.\/]{3,50}$/.test(normalizeText(text));
+
 export function InventoryPage() {
   const app = useApp();
   const [products, setProducts] = useState<Product[]>([]);
@@ -53,7 +55,6 @@ export function InventoryPage() {
   const offBookFilter: OffBookFilter = (OFF_BOOK_FILTERS as readonly string[]).includes(offBookRaw) ? (offBookRaw as OffBookFilter) : "all";
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [tab, setTab] = useState<Tab>("products");
-  const [scannerOpen, setScannerOpen] = useState(false);
   /** 入出庫の受注番号（商品を切り替えても残す。画面を開き直すと消える） */
   const [orderNo, setOrderNo] = useState("");
 
@@ -132,37 +133,33 @@ export function InventoryPage() {
     }
   };
 
+  /**
+   * 検索欄で Enter（USB バーコードリーダーはキーボードとしてコード + Enter を送る）。
+   * コード（QR の URL も可）が一致すればその商品を選ぶ。旧コードなら現在の商品を選ぶ。
+   * どれにも当たらず、コードらしい文字列（英数字・記号のみ）なら新規登録を提案する。
+   */
   const onSearchEnter = async () => {
-    // USB バーコードリーダー（キーボードとして入力 + Enter）での読み取りに対応
-    if (selectByCode(keyword)) {
-      setKeyword("");
-      return;
-    }
-    if (filtered.length === 1) setSelectedId(filtered[0]!.id);
-    else if (filtered.length === 0) {
-      if (await selectByOldCode(keyword)) {
-        setKeyword("");
-        return;
-      }
-      app.toast(`「${keyword}」に該当する商品はありません`, "info");
-    }
-  };
-
-  const onScanned = async (scanned: string) => {
-    const code = extractCode(scanned);
-    setScannerOpen(false);
+    const text = keyword.trim();
+    if (!text) return;
+    const code = extractCode(text);
     if (selectByCode(code)) {
       setKeyword("");
-      app.toast(`「${normalizeText(code)}」を選択しました`, "info");
       return;
     }
+    if (filtered.length === 1) {
+      setSelectedId(filtered[0]!.id);
+      return;
+    }
+    if (filtered.length > 1) return;
     if (await selectByOldCode(code)) {
       setKeyword("");
       return;
     }
-    if (window.confirm(`コード「${code}」の商品は登録されていません。\nこのコードで新しく登録しますか？`)) {
+    if (looksLikeCode(code) && window.confirm(`コード「${normalizeText(code)}」の商品は登録されていません。\nこのコードで新しく登録しますか？`)) {
       navigate({ page: "new", code: normalizeText(code) });
+      return;
     }
+    app.toast(`「${text}」に該当する商品はありません`, "info");
   };
 
   if (!loaded) return <div className="loading">読み込み中…</div>;
@@ -197,6 +194,7 @@ export function InventoryPage() {
                 }
               }}
               placeholder="コード・商品名で検索"
+              title="バーコードリーダーで読み取って Enter でも探せます"
               aria-label="検索"
               enterKeyHint="search"
             />
@@ -225,15 +223,9 @@ export function InventoryPage() {
             <option value="only">簿外のみ（{products.filter((p) => p.offBook).length}）</option>
             <option value="exclude">簿外以外（{products.filter((p) => !p.offBook).length}）</option>
           </select>
-          <button type="button" className="button scan-button" onClick={() => setScannerOpen(true)}>
-            <span aria-hidden="true">▦</span> 読み取り
-          </button>
           <a className="button desktop-only" href="/api/products.csv" download title="在庫一覧をCSVで保存（Excelで開けます）">
             CSV出力
           </a>
-          <button type="button" className="button primary desktop-only" onClick={() => navigate({ page: "new", code: "" })}>
-            ＋ 商品登録
-          </button>
         </div>
 
         {products.length === 0 ? (
@@ -314,7 +306,7 @@ export function InventoryPage() {
             onOrderNoChange={setOrderNo}
           />
         ) : (
-          <div className="card hint desktop-only">一覧から商品を選ぶか「読み取り」でコードを読み取ると、ここで入庫・出庫できます。</div>
+          <div className="card hint desktop-only">一覧から商品を選ぶか、検索欄でコードを読み取る（バーコードリーダー）と、ここで入庫・出庫できます。</div>
         )}
 
         <section className="card low-card">
@@ -360,7 +352,6 @@ export function InventoryPage() {
         </section>
       </aside>
 
-      {scannerOpen && <ScannerDialog onDetected={(c) => void onScanned(c)} onClose={() => setScannerOpen(false)} />}
     </div>
   );
 }

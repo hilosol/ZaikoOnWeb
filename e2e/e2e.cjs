@@ -229,12 +229,20 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     await page2.screenshot({ path: `${SHOTS}/04_desktop_conflict.png` });
     await page2.close();
 
-    // カメラ映像からのリアルタイム読み取り（localhost は安全なコンテキストなのでライブ方式）
+    // PC 画面には「読み取り」「＋商品登録」ボタンを置かない（読み取りは USB リーダー＝検索欄、またはスマホ用画面）
     await page.goto(base);
     await page.locator(".product-list").waitFor();
-    await page.getByRole("button", { name: /読み取り/ }).click();
-    await page.locator(".toast", { hasText: "「A001」を選択しました" }).last().waitFor({ timeout: 15000 });
-    check("カメラ映像から QR を読み取って商品を選択（ライブ）", (await page.locator(".stock-panel .name").first().textContent()).includes("りんご"));
+    check("PC：在庫一覧の上に「読み取り」「＋商品登録」ボタンが無い",
+      (await page.locator(".toolbar").getByRole("button", { name: /読み取り|商品登録/ }).count()) === 0);
+    await page.locator(".toolbar").screenshot({ path: `${SHOTS}/47_toolbar.png` });
+
+    // カメラ映像からのリアルタイム読み取り（スマホ用画面。localhost は安全なコンテキストなのでライブ方式）
+    await page.goto(`${base}/m`);
+    await page.getByRole("button", { name: /QRを読み取る/ }).click();
+    await page.getByTestId("m-stock").waitFor({ timeout: 15000 });
+    check("カメラ映像から QR を読み取って商品を表示（ライブ）", (await page.locator(".m-name").textContent()).includes("りんご"));
+    await page.goto(base);
+    await page.locator(".product-list").waitFor();
 
     // カメラの選択（QR が写っていない映像：Chromium の既定のテスト映像）
     const camBrowser = await chromium.launch({ args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
@@ -369,20 +377,22 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     check("スマホ：＋ボタンで数量3にして入庫（2→5）", (await m.getByTestId("stock-value").textContent()) === "5");
     await m.getByRole("button", { name: "閉じる" }).tap();
 
-    // 写真からの読み取り（http のため写真方式）
-    await m.getByRole("button", { name: /読み取り/ }).tap();
+    // 写真からの読み取り（スマホ用画面。http のため写真方式）
+    await m.goto(`${mbase}/m`);
+    await m.getByRole("button", { name: /QRを読み取る/ }).tap();
     await m.locator(".scanner-photo").waitFor();
     check("http 接続では写真から読み取る方式になる", await m.getByText("写真から読み取ります").isVisible());
     await m.screenshot({ path: `${SHOTS}/12_mobile_scanner.png` });
     await m.setInputFiles('[data-testid="scan-photo-input"]', A("ean_known.jpg"));
-    await m.locator(".toast", { hasText: "4901234567894" }).last().waitFor();
-    check("JAN バーコードの写真から商品を選択", (await m.locator(".stock-panel .name").first().textContent()).includes("青い箱"));
-    await m.getByRole("button", { name: "閉じる" }).tap();
+    await m.getByTestId("m-stock").waitFor();
+    check("JAN バーコードの写真から商品を表示", (await m.locator(".m-name").textContent()).includes("青い箱"));
 
-    // 未登録コード → 新規登録へ
-    await m.getByRole("button", { name: /読み取り/ }).tap();
+    // 未登録コード（USB リーダー＝検索欄にコード + Enter）→ 新規登録へ
+    await m.goto(mbase);
+    await m.locator(".product-list").waitFor();
     m.once("dialog", (d) => d.accept());
-    await m.setInputFiles('[data-testid="scan-photo-input"]', A("ean_unknown.jpg"));
+    await m.getByLabel("検索").fill("4512345678906");
+    await m.getByLabel("検索").press("Enter");
     await m.getByRole("heading", { name: "商品登録" }).waitFor();
     const scannedCode = await m.locator(".field:has-text('商品コード') input").inputValue();
     check("未登録コードは新規登録画面にコードを入れて開く", scannedCode === "4512345678906", scannedCode);

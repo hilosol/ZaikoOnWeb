@@ -398,8 +398,15 @@ input.num {
   margin-bottom: 10px;
 }
 
+/* 検索欄を広く取る（絞り込みのプルダウンは必要な幅だけ） */
 .search {
-  flex: 1;
+  flex: 1 1 360px;
+  min-width: 0;
+}
+
+.search input {
+  height: 42px;
+  font-size: 16px;
 }
 
 .product-list {
