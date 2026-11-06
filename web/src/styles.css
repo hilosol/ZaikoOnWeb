@@ -734,6 +734,50 @@ input.num {
 .settings {
   max-width: 900px;
   margin: 0 auto;
+  padding-bottom: 40px;
+}
+
+/* 設定の各項目：項目同士に間をあけ、項目の中もゆとりを持たせる */
+.settings-anchor + .settings-anchor {
+  margin-top: 24px;
+}
+
+.settings .card {
+  padding: 20px 24px;
+}
+
+.settings .card h2 {
+  font-size: 17px;
+  margin: 0 0 6px;
+}
+
+.settings .card h3 {
+  margin: 18px 0 6px;
+}
+
+.settings .card > p.muted,
+.settings .card > p.small {
+  line-height: 1.7;
+  margin: 0 0 14px;
+}
+
+.settings .card > p.muted:last-child,
+.settings .card > p.small:last-child {
+  margin-bottom: 0;
+}
+
+.settings .card .csv-actions {
+  margin-top: 12px;
+}
+
+@media (max-width: 600px) {
+  .settings-anchor + .settings-anchor {
+    margin-top: 16px;
+  }
+
+  .settings .card {
+    padding: 16px;
+  }
 }
 
 /* 設定の項目メニュー（画面上部の見出しのすぐ下に固定。top は画面側で見出しの高さを入れる） */
@@ -761,6 +805,46 @@ input.num {
 
 .settings-menu-inner::-webkit-scrollbar {
   display: none;
+}
+
+.settings-menu-frame {
+  position: relative;
+}
+
+/* 左右の移動ボタン：隠れている側にだけ出す。端をぼかして続きがあることも見せる */
+.settings-menu-arrow {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  z-index: 1;
+  width: 44px;
+  border: none;
+  padding: 0;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.settings-menu-arrow.left {
+  left: 1px;
+  border-radius: 11px 0 0 11px;
+  text-align: left;
+  padding-left: 10px;
+  background: linear-gradient(to right, #fff 55%, rgba(255, 255, 255, 0));
+}
+
+.settings-menu-arrow.right {
+  right: 1px;
+  border-radius: 0 11px 11px 0;
+  text-align: right;
+  padding-right: 10px;
+  background: linear-gradient(to left, #fff 55%, rgba(255, 255, 255, 0));
+}
+
+.settings-menu-arrow:hover {
+  color: var(--primary-hover);
+  font-weight: 700;
 }
 
 .settings-menu-item {

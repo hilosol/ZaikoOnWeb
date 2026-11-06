@@ -452,7 +452,17 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     await page.locator("section.mail-settings").waitFor();
     check("設定：操作ログの表は置かない（履歴ページの「操作ログ」で見る）", (await page.getByTestId("audit-log").count()) === 0);
     const menu = page.getByRole("navigation", { name: "設定の項目" });
-    check("設定：上に項目のメニュー（サーバーPCの画面ではプログラムの更新も）", (await menu.getByRole("button").allTextContents()).join(",") === "入力者,端末,在庫データ（CSV）,紐づけIDリスト,履歴のCSV保存,バックアップ,メール通知,サーバーPC IP,プログラムの更新");
+    check("設定：上に項目のメニュー（サーバーPCの画面ではプログラムの更新も）", (await menu.locator(".settings-menu-item").allTextContents()).join(",") === "入力者,端末,在庫データ（CSV）,紐づけIDリスト,履歴のCSV保存,バックアップ,メール通知,サーバーPC IP,プログラムの更新");
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(300);
+    const rightArrow = menu.getByRole("button", { name: "メニューを右へ" });
+    check("設定：メニューが収まらないときは右へ移動するボタン（左端では左ボタンなし）",
+      (await rightArrow.count()) === 1 && (await menu.getByRole("button", { name: "メニューを左へ" }).count()) === 0);
+    await rightArrow.click();
+    await menu.getByRole("button", { name: "メニューを左へ" }).waitFor();
+    check("設定：右へ動かすと左へ戻るボタンが出る", true);
+    await menu.getByRole("button", { name: "メニューを左へ" }).click();
+    await page.waitForTimeout(600);
     await menu.getByRole("button", { name: "メール通知" }).click();
     await page.waitForTimeout(800);
     const mailTop = await page.locator("#settings-mail").evaluate((el) => el.getBoundingClientRect().top);
