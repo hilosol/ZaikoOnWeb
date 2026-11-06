@@ -736,6 +736,22 @@ input.num {
   margin: 0 auto;
 }
 
+/* 設定の項目メニュー（画面上部の見出しのすぐ下に固定。top は画面側で見出しの高さを入れる） */
+.settings-menu {
+  position: sticky;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 8px 0;
+  background: var(--panel);
+}
+
+.settings-menu .chip {
+  cursor: pointer;
+}
+
 .inline-form {
   display: flex;
   gap: 8px;

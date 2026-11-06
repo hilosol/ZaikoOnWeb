@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { Rules, type ImportResult, type UnassignedIp, type User } from "../../../shared/types";
 import { api, ApiError, errorMessage } from "../api";
 import { shortDateTime } from "../components/common";
@@ -12,14 +12,62 @@ import { OrderListSection } from "./OrderListSection";
 export function SettingsPage() {
   return (
     <div className="settings">
-      <UsersSection />
-      <DevicesSection />
-      <StockCsvSection />
-      <OrderListSection />
-      <LogExportSection />
-      <MailSettingsSection />
-      <AccessSection />
+      <SettingsMenu />
+      {SECTIONS.map(({ id, Component }) => (
+        <div key={id} id={id} className="settings-anchor">
+          <Component />
+        </div>
+      ))}
     </div>
+  );
+}
+
+/** 設定の項目（上のメニューの順・表示名）。項目を増やすときはここに足す */
+const SECTIONS: { id: string; label: string; Component: ComponentType }[] = [
+  { id: "settings-users", label: "入力者", Component: UsersSection },
+  { id: "settings-devices", label: "端末", Component: DevicesSection },
+  { id: "settings-stock-csv", label: "在庫データ（CSV）", Component: StockCsvSection },
+  { id: "settings-order-list", label: "紐づけIDリスト", Component: OrderListSection },
+  { id: "settings-log-export", label: "履歴のCSV保存", Component: LogExportSection },
+  { id: "settings-mail", label: "メール通知", Component: MailSettingsSection },
+  { id: "settings-access", label: "スマホからのアクセス", Component: AccessSection },
+];
+
+/**
+ * 設定画面の上に出す項目のメニュー（画面上部に固定）。押すとその項目へ移動する。
+ * 画面上部の見出し（app-header）とこのメニューに隠れない位置までスクロールする。
+ * URL の # は画面の切り替えに使っているため、リンクではなくスクロールで移動する。
+ */
+function SettingsMenu() {
+  const menuRef = useRef<HTMLElement>(null);
+  const [top, setTop] = useState(0);
+
+  // 画面上部の見出しの高さ（スマホでは折り返して変わる）のすぐ下に固定する
+  useEffect(() => {
+    const header = document.querySelector<HTMLElement>(".app-header");
+    if (!header) return;
+    const update = () => setTop(header.offsetHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(header);
+    return () => ro.disconnect();
+  }, []);
+
+  const jump = (id: string) => {
+    const target = document.getElementById(id);
+    if (!target) return;
+    const header = document.querySelector<HTMLElement>(".app-header")?.offsetHeight ?? 0;
+    const menu = menuRef.current?.offsetHeight ?? 0;
+    window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - header - menu - 8, behavior: "smooth" });
+  };
+  return (
+    <nav ref={menuRef} className="settings-menu" style={{ top }} aria-label="設定の項目">
+      {SECTIONS.map(({ id, label }) => (
+        <button key={id} type="button" className="chip" onClick={() => jump(id)}>
+          {label}
+        </button>
+      ))}
+    </nav>
   );
 }
 

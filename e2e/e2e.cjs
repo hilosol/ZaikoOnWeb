@@ -445,6 +445,15 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     await page.getByRole("button", { name: "設定" }).click();
     await page.locator("section.mail-settings").waitFor();
     check("設定：操作ログの表は置かない（履歴ページの「操作ログ」で見る）", (await page.getByTestId("audit-log").count()) === 0);
+    const menu = page.getByRole("navigation", { name: "設定の項目" });
+    check("設定：上に項目のメニュー", (await menu.getByRole("button").allTextContents()).join(",") === "入力者,端末,在庫データ（CSV）,紐づけIDリスト,履歴のCSV保存,メール通知,スマホからのアクセス");
+    await menu.getByRole("button", { name: "メール通知" }).click();
+    await page.waitForTimeout(800);
+    const mailTop = await page.locator("#settings-mail").evaluate((el) => el.getBoundingClientRect().top);
+    const menuBottom = await menu.evaluate((el) => el.getBoundingClientRect().bottom);
+    check("設定：メニューを押すとその項目へ移動（メニューに隠れない）", mailTop >= menuBottom && mailTop < menuBottom + 40, `${mailTop} / ${menuBottom}`);
+    await page.screenshot({ path: `${SHOTS}/06b_settings_menu.png` });
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: `${SHOTS}/06_desktop_settings.png`, fullPage: true });
 
     // メール通知の設定（E2E 用の SMTP サーバーに送る）
