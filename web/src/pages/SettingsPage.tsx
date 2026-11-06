@@ -48,7 +48,7 @@ const SECTIONS: SettingsSectionDef[] = [
   { id: "settings-order-list", label: "紐づけIDリスト", Component: OrderListSection },
   { id: "settings-log-export", label: "履歴のCSV保存", Component: LogExportSection },
   { id: "settings-mail", label: "メール通知", Component: MailSettingsSection },
-  { id: "settings-access", label: "スマホからのアクセス", Component: AccessSection },
+  { id: "settings-access", label: "サーバーPC IP", Component: AccessSection },
 ];
 
 /**
@@ -71,20 +71,66 @@ function SettingsMenu({ sections }: { sections: Pick<SettingsSectionDef, "id" | 
     return () => ro.disconnect();
   }, []);
 
+  const [active, setActive] = useState(sections[0]?.id ?? "");
+  const ids = sections.map((x) => x.id).join(",");
+
+  /** 見出しとメニューに隠れずに見え始める位置 */
+  const offset = () => (document.querySelector<HTMLElement>(".app-header")?.offsetHeight ?? 0) + (menuRef.current?.offsetHeight ?? 0) + 16;
+
+  // スクロールに合わせて、いま見ている項目をメニューで強調する
+  useEffect(() => {
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const line = offset();
+      let current = ids.split(",")[0] ?? "";
+      for (const id of ids.split(",")) {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top <= line) current = id;
+      }
+      // 一番下までスクロールしたら最後の項目
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) current = ids.split(",").at(-1) ?? current;
+      setActive(current);
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [ids]);
+
+  // 強調した項目がメニューの外（スマホで横スクロール）に出たら見える位置へ
+  useEffect(() => {
+    menuRef.current?.querySelector<HTMLElement>(`[data-target="${active}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [active]);
+
   const jump = (id: string) => {
     const target = document.getElementById(id);
     if (!target) return;
-    const header = document.querySelector<HTMLElement>(".app-header")?.offsetHeight ?? 0;
-    const menu = menuRef.current?.offsetHeight ?? 0;
-    window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - header - menu - 8, behavior: "smooth" });
+    window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - offset() + 8, behavior: "smooth" });
   };
   return (
     <nav ref={menuRef} className="settings-menu" style={{ top }} aria-label="設定の項目">
-      {sections.map(({ id, label }) => (
-        <button key={id} type="button" className="chip" onClick={() => jump(id)}>
-          {label}
-        </button>
-      ))}
+      <div className="settings-menu-inner">
+        {sections.map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            data-target={id}
+            className={`settings-menu-item${active === id ? " active" : ""}`}
+            aria-current={active === id ? "true" : undefined}
+            onClick={() => jump(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
     </nav>
   );
 }
@@ -370,9 +416,9 @@ function AccessSection() {
 
   return (
     <section className="card">
-      <h2>スマホからのアクセス</h2>
+      <h2>サーバーPC IP</h2>
       <p className="muted small">
-        同じ社内Wi-Fiに接続したスマホのカメラで読み取ると、スマホ用画面（ID入力・QR読み取り → 入庫・移管・出庫）が開きます。
+        同じローカルネットワーク（Wi-Fi）に接続したスマホのカメラで読み取ると、スマホ用画面（ID入力・QR読み取り → 入庫・移管・出庫）が開きます。
         ホーム画面に追加するとアプリのように使えます。
       </p>
       {error && <div className="error-box">{error}</div>}
@@ -383,7 +429,7 @@ function AccessSection() {
             <figcaption>{url}</figcaption>
           </figure>
         ))}
-        {urls.length === 0 && !error && <p className="muted">社内向けのアドレスが見つかりません。</p>}
+        {urls.length === 0 && !error && <p className="muted">ローカルネットワークのアドレスが見つかりません。</p>}
       </div>
     </section>
   );

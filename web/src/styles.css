@@ -740,16 +740,60 @@ input.num {
 .settings-menu {
   position: sticky;
   z-index: 10;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0 0 12px;
-  padding: 8px 0;
-  background: var(--panel);
+  margin: 0 0 14px;
+  padding: 10px 0 6px;
+  /* 下の内容が透けないよう背景色でふさぎ、境目だけ少しぼかす */
+  background: linear-gradient(var(--panel) 85%, rgba(246, 248, 250, 0));
 }
 
-.settings-menu .chip {
+.settings-menu-inner {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(208, 215, 222, 0.7);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px rgba(16, 24, 40, 0.06);
+}
+
+.settings-menu-inner::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-menu-item {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.settings-menu-item:hover {
+  background: #f0f3f6;
+  color: #1f2328;
+}
+
+.settings-menu-item.active {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(31, 78, 121, 0.35);
+}
+
+.settings-menu-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .inline-form {

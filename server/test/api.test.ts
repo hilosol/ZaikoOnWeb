@@ -156,16 +156,16 @@ describe("API", () => {
     expect(res.statusCode).toBe(404);
   });
 
-  it("社内ネットワーク以外からの接続は 403", async () => {
+  it("ローカルネットワーク以外からの接続は 403", async () => {
     const outside = buildApp({ service: f.service, images: f.images, isAllowedAddress: () => false });
     const res = await outside.inject({ url: "/api/products" });
     expect(res.statusCode).toBe(403);
-    expect(res.body).toContain("社内ネットワーク以外");
+    expect(res.body).toContain("ローカルネットワーク以外");
     await outside.close();
   });
 });
 
-describe("社内ネットワーク判定", () => {
+describe("ローカルネットワーク判定", () => {
   it.each([
     ["127.0.0.1", true],
     ["192.168.1.5", true],

@@ -36,7 +36,7 @@ export class ApiError extends Error {
 }
 
 const OFFLINE_MESSAGE =
-  "サーバーに接続できません。サーバーPCが起動しているか、同じネットワーク（社内Wi-Fi）に接続しているか確認してください。";
+  "サーバーに接続できません。サーバーPCが起動しているか、同じローカルネットワーク（Wi-Fi）に接続しているか確認してください。";
 
 async function request<T>(method: string, url: string, body?: unknown, contentType = "application/json"): Promise<T> {
   let res: Response;

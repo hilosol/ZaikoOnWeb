@@ -450,7 +450,7 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     await page.locator("section.mail-settings").waitFor();
     check("設定：操作ログの表は置かない（履歴ページの「操作ログ」で見る）", (await page.getByTestId("audit-log").count()) === 0);
     const menu = page.getByRole("navigation", { name: "設定の項目" });
-    check("設定：上に項目のメニュー（サーバーPCの画面ではプログラムの更新も）", (await menu.getByRole("button").allTextContents()).join(",") === "入力者,端末,在庫データ（CSV）,紐づけIDリスト,履歴のCSV保存,メール通知,スマホからのアクセス,プログラムの更新");
+    check("設定：上に項目のメニュー（サーバーPCの画面ではプログラムの更新も）", (await menu.getByRole("button").allTextContents()).join(",") === "入力者,端末,在庫データ（CSV）,紐づけIDリスト,履歴のCSV保存,メール通知,サーバーPC IP,プログラムの更新");
     await menu.getByRole("button", { name: "メール通知" }).click();
     await page.waitForTimeout(800);
     const mailTop = await page.locator("#settings-mail").evaluate((el) => el.getBoundingClientRect().top);
@@ -1002,9 +1002,9 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     if (process.env.EXTERNAL_IP) {
       try {
         const code = execSync(`curl -s -o /dev/null -w "%{http_code}" http://${process.env.EXTERNAL_IP}:${PORT}/api/health`).toString();
-        check("社内ネットワーク以外のアドレスからの接続は 403", code === "403", code);
+        check("ローカルネットワーク以外のアドレスからの接続は 403", code === "403", code);
       } catch (e) {
-        check("社内ネットワーク以外のアドレスからの接続は 403", false, String(e));
+        check("ローカルネットワーク以外のアドレスからの接続は 403", false, String(e));
       }
     }
     server.kill("SIGINT");

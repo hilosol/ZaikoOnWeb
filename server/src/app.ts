@@ -42,7 +42,7 @@ export interface AppOptions {
   logExporter?: { getStatus(): LogExportStatus; run(): LogExportStatus };
   /** ビルド済みの画面（index.html のあるフォルダ）。未指定なら API のみ */
   webDir?: string;
-  /** テスト用：社内ネットワーク判定を差し替える */
+  /** テスト用：ローカルネットワーク判定を差し替える */
   isAllowedAddress?: (ip: string) => boolean;
   logger?: boolean;
 }
@@ -121,7 +121,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const ip = clientIp(req);
     if (!isAllowed(ip)) {
       req.log.warn({ ip }, "社外からの接続を拒否");
-      return reply.code(403).type("text/plain; charset=utf-8").send("社内ネットワーク以外からはアクセスできません。");
+      return reply.code(403).type("text/plain; charset=utf-8").send("ローカルネットワーク以外からはアクセスできません。");
     }
   });
 
