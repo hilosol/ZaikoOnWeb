@@ -5,3 +5,4 @@ dev-data/
 e2e/shots/
 *.log
 dist.prev/
+demo-data/

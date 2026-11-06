@@ -19,6 +19,7 @@ import { APP_VERSION } from "./version.js";
  *   ZAIKO_PORT      待ち受けポート（既定 28003）
  *   ZAIKO_DATA_DIR  データの保存先（既定: このプログラムと同じ場所の data フォルダ）
  *   ZAIKO_ORDER_LIST 受注番号リストのファイル（既定: データの保存先の 受注番号リスト.txt）
+ *   ZAIKO_DEMO      1 = デモ（お試し・説明用）環境。画面に「デモ」と表示する
  */
 const here = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.ZAIKO_PORT ?? 28003);
@@ -41,6 +42,7 @@ const db = openDatabase(path.join(dataDir, "zaiko.db"), (fromVersion) => {
   return dest;
 });
 const images = new FileImageStore(dataDir);
+const isDemo = process.env.ZAIKO_DEMO === "1";
 const orderListFile = path.resolve(process.env.ZAIKO_ORDER_LIST ?? path.join(dataDir, "受注番号リスト.txt"));
 const orderList = new OrderNumberList(orderListFile);
 const service = new InventoryService(db, images, systemClock, orderList);
@@ -56,7 +58,7 @@ const mail = new MailNotifier({
   version: APP_VERSION,
 });
 const logExporter = new CsvLogExporter(service, path.join(dataDir, "logs"), systemClock);
-const app = buildApp({ service, images, mail, logExporter, orderList, webDir: fs.existsSync(webDir) ? webDir : undefined, logger: true });
+const app = buildApp({ service, images, mail, logExporter, orderList, demo: isDemo, webDir: fs.existsSync(webDir) ? webDir : undefined, logger: true });
 
 /** 1日1回 DB をバックアップし、古いものを削除する（画像フォルダは対象外。README 参照）。 */
 function dailyBackup(): void {
@@ -127,7 +129,7 @@ try {
   await app.listen({ host: "0.0.0.0", port });
   const urls = [`http://localhost:${port}`, ...lanAddresses().map((ip) => `http://${ip}:${port}`)];
   console.log("\n========================================");
-  console.log(` 在庫管理 を起動しました（バージョン ${APP_VERSION}）`);
+  console.log(` 在庫管理 を起動しました（バージョン ${APP_VERSION}）${isDemo ? " 【デモ環境】" : ""}`);
   console.log(" ブラウザ・スマホから次のアドレスを開いてください:");
   for (const url of urls) console.log(`   ${url}`);
   console.log(` データの保存先: ${dataDir}`);

@@ -9,6 +9,7 @@ import { SupplierList } from "../components/Suppliers";
 import { useLocalStorage } from "../hooks";
 import { parseQuantity } from "../pages/InventoryPage";
 import { suggestProducts } from "./suggest";
+import { DemoBadge, useDemoFlag } from "../demo";
 import { APP_VERSION } from "../version";
 
 type Operation = "IN" | "TRANSFER" | "OUT";
@@ -208,6 +209,7 @@ export function MobileApp() {
   };
 
   const low = product ? product.stock <= product.warningStock : false;
+  const demo = useDemoFlag();
 
   return (
     <div className="m-app">
@@ -215,6 +217,7 @@ export function MobileApp() {
         <span className="m-brand">
           <img src="/icon-192.png" alt="" width={28} height={28} />
           在庫管理
+          <DemoBadge demo={demo} />
         </span>
         <span className="app-version" title="ビルド日時">
           Ver. {APP_VERSION}

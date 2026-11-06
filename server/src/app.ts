@@ -26,6 +26,8 @@ export interface AppOptions {
   images: ImageStore;
   /** メール通知（未指定ならメール関連の API は 404） */
   mail?: MailNotifier;
+  /** デモ環境（ZAIKO_DEMO=1）。画面に「デモ」と表示する */
+  demo?: boolean;
   /** 受注番号リスト（未指定なら候補は最近入力した番号のみ） */
   orderList?: Pick<OrderNumberList, "list">;
   /** 履歴 CSV の自動書き出し（未指定なら関連 API は 404） */
@@ -156,7 +158,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   // ------------------------------------------------------------ API
 
-  app.get("/api/health", async () => ({ ok: true, version: APP_VERSION }));
+  /** demo: デモ（お試し・説明用）環境か。画面に「デモ」と表示して本番と取り違えないようにする */
+  app.get("/api/health", async () => ({ ok: true, version: APP_VERSION, demo: options.demo === true }));
 
   /** スマホ等から開くためのアドレス（このPCの社内向け IP + 待ち受けポート） */
   app.get("/api/server-info", async (req) => {

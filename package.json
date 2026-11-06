@@ -12,8 +12,9 @@
     "build": "npm run typecheck && node scripts/build.mjs",
     "start": "node --disable-warning=ExperimentalWarning dist/server.mjs",
     "test": "vitest run",
-    "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit",
-    "e2e": "node e2e/e2e.cjs"
+    "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit && tsc -p scripts/tsconfig.json --noEmit",
+    "e2e": "node e2e/e2e.cjs",
+    "seed:demo": "tsx scripts/seed-demo.ts"
   },
   "dependencies": {
     "@zxing/browser": "^0.2.1",

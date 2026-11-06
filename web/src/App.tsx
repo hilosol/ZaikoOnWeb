@@ -8,6 +8,7 @@ import { InventoryPage } from "./pages/InventoryPage";
 import { ProductEditPage } from "./pages/ProductEditPage";
 import { HistoryPage } from "./history/HistoryPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { DemoBadge, useDemoFlag } from "./demo";
 import { APP_VERSION } from "./version";
 
 interface Toast {
@@ -21,6 +22,7 @@ export function App() {
   const [userName, setUserName] = useLocalStorage("zaiko.userName", "");
   const [users, setUsers] = useState<User[]>([]);
   const [usersLoaded, setUsersLoaded] = useState(false);
+  const demo = useDemoFlag();
   const [pickerOpen, setPickerOpen] = useState(false);
   // 端末の IP に紐づいた入力者（入力者を選んでいない端末は、この人として扱う）
   const [ipUser, setIpUser] = useState("");
@@ -89,11 +91,13 @@ export function App() {
 
   return (
     <AppContext.Provider value={ctx}>
+      {demo && <div className="demo-ribbon">デモ環境：お試し・説明用のデータです（本番の在庫とは関係ありません）</div>}
       <header className="app-header">
         <button type="button" className="brand" onClick={() => navigate({ page: "inventory" })}>
           <img src="/icon-192.png" alt="" width={32} height={32} />
           <span>在庫管理</span>
         </button>
+        <DemoBadge demo={demo} />
         <nav className="nav">
           <button type="button" className={route.page === "inventory" ? "active" : ""} onClick={() => navigate({ page: "inventory" })}>
             在庫一覧
