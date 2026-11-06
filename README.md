@@ -161,7 +161,7 @@ e2e/               ブラウザでの動作確認スクリプト
    （`data` は Git の管理外なので、在庫データ・写真・設定は消えません）。
    ```powershell
    git init -b main
-   git remote add origin https://github.com/hilosol/<リポジトリ名>.git
+   git remote add origin https://github.com/hilosol/ZaikoOnWeb.git
    git fetch origin
    git reset --hard origin/main
    git branch --set-upstream-to=origin/main main
