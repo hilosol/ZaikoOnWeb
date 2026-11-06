@@ -1,6 +1,6 @@
 import QRCode from "qrcode";
 import { useCallback, useEffect, useState } from "react";
-import { AuditLabels, Rules, type AuditLog, type ImportResult, type UnassignedIp, type User } from "../../../shared/types";
+import { Rules, type ImportResult, type UnassignedIp, type User } from "../../../shared/types";
 import { api, ApiError, errorMessage } from "../api";
 import { shortDateTime } from "../components/common";
 import { useApp } from "../context";
@@ -21,7 +21,6 @@ export function SettingsPage() {
       <LogExportSection />
       <MailSettingsSection />
       <AccessSection />
-      <AuditSection />
     </div>
   );
 }
@@ -322,50 +321,6 @@ function AccessSection() {
         ))}
         {urls.length === 0 && !error && <p className="muted">社内向けのアドレスが見つかりません。</p>}
       </div>
-    </section>
-  );
-}
-
-function AuditSection() {
-  const [logs, setLogs] = useState<AuditLog[]>([]);
-  useEffect(() => {
-    api.auditLogs(100).then(setLogs).catch(() => setLogs([]));
-  }, []);
-
-  return (
-    <section className="card">
-      <h2>操作ログ（最新100件）</h2>
-      <p className="muted small">商品の登録・変更・削除と、入力者の設定変更の記録です。</p>
-      {logs.length === 0 ? (
-        <p className="muted">記録はまだありません。</p>
-      ) : (
-        <div className="table-scroll">
-          <table className="audit-table" data-testid="audit-log">
-            <thead>
-              <tr>
-                <th>日時</th>
-                <th>操作</th>
-                <th>対象</th>
-                <th>内容</th>
-                <th>入力者</th>
-                <th>端末IP</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((l) => (
-                <tr key={l.id}>
-                  <td className="nowrap">{shortDateTime(l.createdAt)}</td>
-                  <td className="nowrap">{AuditLabels[l.action] ?? l.action}</td>
-                  <td>{l.target}</td>
-                  <td>{l.detail}</td>
-                  <td className="nowrap">{l.userName}</td>
-                  <td className="nowrap">{l.clientIp}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </section>
   );
 }

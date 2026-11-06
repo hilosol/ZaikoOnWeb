@@ -443,7 +443,8 @@ async function registerProduct(page, { code, name, category, initial, warning, i
 
     // PC で設定画面
     await page.getByRole("button", { name: "設定" }).click();
-    await page.getByTestId("audit-log").waitFor();
+    await page.locator("section.mail-settings").waitFor();
+    check("設定：操作ログの表は置かない（履歴ページの「操作ログ」で見る）", (await page.getByTestId("audit-log").count()) === 0);
     await page.screenshot({ path: `${SHOTS}/06_desktop_settings.png`, fullPage: true });
 
     // メール通知の設定（E2E 用の SMTP サーバーに送る）
