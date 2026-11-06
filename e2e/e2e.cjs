@@ -468,6 +468,7 @@ async function registerProduct(page, { code, name, category, initial, warning, i
     const mailTop = await page.locator("#settings-mail").evaluate((el) => el.getBoundingClientRect().top);
     const menuBottom = await menu.evaluate((el) => el.getBoundingClientRect().bottom);
     check("設定：メニューを押すとその項目へ移動（メニューに隠れない）", mailTop >= menuBottom && mailTop < menuBottom + 40, `${mailTop} / ${menuBottom}`);
+    check("設定：移動した項目をメニューで強調", (await menu.locator(".settings-menu-item.active").textContent()) === "メール通知");
     await page.screenshot({ path: `${SHOTS}/06b_settings_menu.png` });
     await page.evaluate(() => window.scrollTo(0, 0));
 

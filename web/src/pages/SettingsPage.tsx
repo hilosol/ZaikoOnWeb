@@ -104,6 +104,8 @@ function SettingsMenu({
 
   const [active, setActive] = useState(sections[0]?.id ?? "");
   const innerRef = useRef<HTMLDivElement>(null);
+  /** メニューで移動中（なめらかにスクロール中）は、途中の項目を強調しない */
+  const jumpingUntil = useRef(0);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
 
@@ -147,6 +149,7 @@ function SettingsMenu({
     let frame = 0;
     const update = () => {
       frame = 0;
+      if (Date.now() < jumpingUntil.current) return;
       const line = offset();
       let current = ids.split(",")[0] ?? "";
       for (const id of ids.split(",")) {
@@ -184,6 +187,8 @@ function SettingsMenu({
   const jump = (id: string) => {
     const target = document.getElementById(id);
     if (!target) return;
+    setActive(id);
+    jumpingUntil.current = Date.now() + 1000;
     window.scrollTo({
       top: target.getBoundingClientRect().top + window.scrollY - offset() + 8,
       behavior: "smooth",
