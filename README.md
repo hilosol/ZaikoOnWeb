@@ -143,6 +143,8 @@ rem set ZAIKO_DATA_DIR=D:\zaiko-data
 
 ## 5. 開発
 
+開発を引き継ぐ人・AI へ：作業ルールは [AGENTS.md](AGENTS.md)、経緯・設計判断・残課題は [docs/HANDOVER.md](docs/HANDOVER.md) にまとめています。
+
 ```bash
 npm install
 npm run dev        # 開発用サーバー（画面 http://localhost:5173 、API は 28003）。データは dev-data/
